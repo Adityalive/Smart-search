@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { register, login, logout } from "../controllers/auth.controller.js";
+import { register, login, logout, getme } from "../controllers/auth.controller.js";
 import { registerValidator, loginValidator } from "../validators/auth.validator.js";
+import verifyAuth from "../middleware/verifyauth.js";
 
 const authRouter = Router();
 
@@ -12,5 +13,8 @@ authRouter.post("/login", loginValidator, login);
 
 // POST /api/auth/logout
 authRouter.post("/logout", logout);
+
+// GET /api/auth/me
+authRouter.get("/me", verifyAuth, getme);
 
 export default authRouter;

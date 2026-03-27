@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { saveItem, getItems } from "../controllers/item.controller.js";
 import { saveItemValidator } from "../validators/item.validator.js";
-import verifyAuth from "../middleware/verifyAuth.js";
+import verifyAuth from "../middleware/verifyauth.js";
 
 const itemRouter = Router();
 
