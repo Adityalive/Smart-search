@@ -35,14 +35,22 @@ const RegisterPage = () => {
                 </div>
                 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex flex-col items-start leading-relaxed animate-in fade-in slide-in-from-top-2">
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex flex-col items-start leading-relaxed">
                         <div className="flex items-center">
                             <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                             </svg>
                             <span className="font-semibold">Registration Failed</span>
                         </div>
-                        <p className="ml-8 text-red-500/80 mt-1">{error.message || (typeof error === 'string' ? error : "An error occurred during registration. Please check your details and try again.")}</p>
+                        <div className="ml-8 text-red-500/80 mt-1">
+                            {error.errors && error.errors.length > 0 ? (
+                                <ul className="list-disc ml-4 space-y-0.5">
+                                    {error.errors.map((e, i) => <li key={i}>{e.msg}</li>)}
+                                </ul>
+                            ) : (
+                                <p>{error.message || (typeof error === 'string' ? error : "An error occurred during registration.")}</p>
+                            )}
+                        </div>
                     </div>
                 )}
 

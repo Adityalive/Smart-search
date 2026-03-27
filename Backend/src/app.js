@@ -13,8 +13,16 @@ const app = express();
 app.use(helmet());
 app.use(
     cors({
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
-        credentials: true, // allow cookies to be sent cross-origin
+        origin: (origin, callback) => {
+            const allowed = process.env.CLIENT_URL || "http://localhost:5174";
+            // Allow requests with no origin (e.g. mobile apps, curl) or matching origin
+            if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS: origin ${origin} not allowed`));
+            }
+        },
+        credentials: true,
     })
 );
 app.use(morgan("dev"));

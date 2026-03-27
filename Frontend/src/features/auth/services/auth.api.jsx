@@ -24,3 +24,4 @@ export const getme = async () => {
     const response = await api.get("/me");
     return response.data;
 };
+export default { register, login, logout, getme };
