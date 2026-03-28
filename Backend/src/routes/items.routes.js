@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { saveItem, getItems } from "../controllers/item.controller.js";
+import { getClusters } from "../controllers/cluster.controller.js";
+import { getGraph, getRelatedItems, semanticSearch } from "../controllers/graph.controller.js";
 import { saveItemValidator } from "../validators/item.validator.js";
 import verifyAuth from "../middleware/verifyauth.js";
 import { upload } from "../middleware/upload.js";
@@ -14,5 +16,14 @@ itemRouter.post("/", upload.single("file"), saveItemValidator, saveItem);
 
 // GET /api/items — fetch all saved items
 itemRouter.get("/", getItems);
+// GET /api/items/clusters — fetch semantic clusters based on Qdrant embeddings
+itemRouter.get("/clusters", getClusters);
+
+// GET /api/items/graph — fetch global knowledge graph nodes and links
+itemRouter.get("/graph", getGraph);
+// GET /api/items/search?q=... — perform semantic AI search
+itemRouter.get("/search", semanticSearch);
+// GET /api/items/:id/related — fetch conceptually matching items via vector geometry
+itemRouter.get("/:id/related", getRelatedItems);
 
 export default itemRouter;

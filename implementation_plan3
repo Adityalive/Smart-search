@@ -1,0 +1,29 @@
+# Implementation Plan: Frontend Redux Integration for Items
+
+The user wants to transition the `items` feature from local hook-based state to global Redux state management. This will align it with the existing `auth` feature's architecture.
+
+## Proposed Changes
+
+### Frontend State Management
+
+#### [NEW] [itemsSlice.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/items/itemsSlice.js)
+Create a new Redux slice to manage item-related state.
+- **Initial State**: `items: []`, `loading: false`, `error: null`.
+- **Reducers**: `setItems`, `addItem`, `setLoading`, `setError`.
+
+#### [MODIFY] [store.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/app/store.js)
+Register the new `items` reducer in the global store configuration.
+
+#### [MODIFY] [useItems.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/items/hook/useItems.jsx)
+Refactor the hook to use Redux:
+- Replace `useState` with `useSelector` to access global state.
+- Use `useDispatch` to update the state via `itemsSlice` actions.
+- Maintain existing API interaction logic within the hook (consistent with `useAuth` pattern).
+
+## Verification Plan
+
+### Manual Verification
+- Verify that items are correctly loaded and displayed in the UI upon initialization.
+- Verify that adding a new item (e.g., a URL) updates the global state and triggers a re-render.
+- Confirm that loading states and errors are correctly dispatched and visible in the UI.
+- Use Redux DevTools to inspect state transitions for the `items` slice.

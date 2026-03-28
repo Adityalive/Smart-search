@@ -1,0 +1,12 @@
+{
+  "headers": {},
+  "url": "https://08d04e10-6a71-4a3d-8247-9f2c01a4e82a.us-west-1-0.aws.cloud.qdrant.io:6333/collections/knowledge_items/points/scroll",
+  "status": 400,
+  "statusText": "Bad Request",
+  "data": {
+    "status": {
+      "error": "Bad request: Index required but not found for \"userId\" of one of the following types: [keyword]. Help: Create an index for this key or use a different filter."
+    },
+    "time": 0.000001814
+  }
+}

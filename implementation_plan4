@@ -1,0 +1,42 @@
+# Implementation Plan: Dashboard & Semantic Clustering
+
+The goal is to split your current `Home.jsx` into two distinct views accessible via a sidebar: a **Dashboard** (for submitting content) and a **Cluster Page** (where content is automatically organized into folders based on semantic meaning).
+
+## Proposed Architecture Changes
+
+### 1. Backend: Semantic Clustering API
+We will introduce a new lightweight clustering algorithm directly in the backend to ensure similar items are grouped by their existing embeddings.
+
+- **[NEW] `GET /api/clusters` Endpoint**: Create a controller that automatically groups user items.
+- **Clustering Logic**: 
+  - Retrieve all your 3072-dimensional embeddings for the user directly from Qdrant.
+  - Calculate `Cosine Similarity` between documents. 
+  - Group documents dynamically into collections if they surpass a strict similarity threshold (e.g., `> 0.65`).
+- **Cluster Naming**:
+  - The algorithm will analyze the tags of all bundled documents and name the folder after the **most frequently occurring tag** within the cluster.
+
+### 2. Frontend: Redux State Management
+Per your request, we will mirror the existing architecture without overcomplicating things.
+
+- **[NEW] `clusterSlice.js`**: A standard Redux Toolkit slice to manage global `clusters`, `loading`, and `error` state.
+- **[NEW] `cluster.api.jsx`**: Axios API handlers to fetch clusters.
+- **[NEW] `useClusters.jsx`**: A hook (identically structured to your `useItems` hook) executing Redux dispatches and tracking cluster state.
+
+### 3. Frontend: Layout & UI
+- **[NEW] `Sidebar Layout`**: Add a persistent left-hand navigation menu containing "Dashboard" and "Clusters" linking.
+- **[MODIFY] `Home.jsx` (Dashboard View)**: Strip away the mapped Knowledge Base items grid. Leave only the prompt, upload blocks, and URL input as a central command station for content fetching.
+- **[NEW] `Cluster.jsx`**: 
+  - Render an aesthetically pleasing grid of stylized "Folders", labeled with their dominant tag (e.g., "React", "AI").
+  - "When clicked, it shows all the content": Selecting a folder will trigger an inline expansion (or modal view) rendering exactly the same item cards you previously had on your home page, keeping the user experience familiar.
+
+## User Review Required
+> [!IMPORTANT]
+> Because clustering happens dynamically on-the-fly, if you ever accumulate thousands of links, this operation might take ~1-2 seconds to fetch. If you anticipate saving more than 2-3k links, we can run this periodically via a BullMQ background job instead. Are you comfortable keeping this on-the-fly for now (simplest approach)?
+
+> [!TIP]
+> Do you have a preferred icon pack (like `lucide-react`) for the "Folder" imagery, or should I proceed with stylized CSS/standard Lucide components?
+
+## Verification Plan
+1. **API**: Verify `GET /api/clusters` returns a correctly grouped array of objects with `{ clusterName: string, items: [] }`.
+2. **Redux**: Verify the clusters are accessible globally via the Redux devtools.
+3. **UI**: Verify clicking a folder correctly renders its subset of specific, semantically grouped links.

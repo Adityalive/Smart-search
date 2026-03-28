@@ -21,7 +21,12 @@ async function initCollection() {
                 distance: "Cosine", // best for semantic similarity
             },
         });
-        console.log("Qdrant collection created ✓");
+        // Create an index on userId so that pure filtering (e.g. scroll) works efficiently
+        await client.createPayloadIndex(COLLECTION, {
+            field_name: "userId",
+            field_schema: "keyword", // strings for exact match filtering
+        });
+        console.log("Qdrant collection and indexes created ✓");
     } else {
         console.log("Qdrant collection already exists ✓");
     }
@@ -47,7 +52,7 @@ async function upsertItem(itemId, embedding, payload) {
     });
 }
 
-// search for similar items by meaning
+// search for similar items by meaning using a vector query
 async function searchSimilar(queryEmbedding, userId, limit = 5) {
     const results = await client.search(COLLECTION, {
         vector: queryEmbedding,
@@ -60,6 +65,43 @@ async function searchSimilar(queryEmbedding, userId, limit = 5) {
     return results;
 }
 
+// recommend similar items based on an existing item's ID
+async function recommendSimilar(itemId, userId, limit = 5) {
+    const qdrantId = objectIdToUuid(itemId.toString());
+    const results = await client.recommend(COLLECTION, {
+        positive: [qdrantId],
+        limit,
+        filter: {
+            must: [{ key: "userId", match: { value: userId } }]
+        },
+        with_payload: true,
+    });
+    return results;
+}
+
+// fetch all points for a user (used for clustering)
+async function getAllUserPoints(userId) {
+    let allPoints = [];
+    let offset = null;
+    
+    do {
+        const result = await client.scroll(COLLECTION, {
+            filter: {
+                must: [{ key: "userId", match: { value: userId } }]
+            },
+            with_vector: true,
+            with_payload: true,
+            limit: 1000,
+            offset: offset,
+        });
+        
+        allPoints = allPoints.concat(result.points);
+        offset = result.next_page_offset;
+    } while (offset !== null);
+    
+    return allPoints;
+}
+
 // delete an item from vector DB when user deletes it
 async function deleteItem(itemId) {
     const qdrantId = objectIdToUuid(itemId.toString());
@@ -68,4 +110,4 @@ async function deleteItem(itemId) {
     });
 }
 
-export { initCollection, upsertItem, searchSimilar, deleteItem };
+export { initCollection, upsertItem, searchSimilar, recommendSimilar, deleteItem, getAllUserPoints };

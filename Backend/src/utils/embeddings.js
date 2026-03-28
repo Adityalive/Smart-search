@@ -8,7 +8,7 @@ async function getEmbedding(text) {
   try {
     const result = await model.embedContent(text.slice(0, 8000));
     return result.embedding.values; // array of 768 numbers
-  } catch(e) {
+  } catch (e) {
     console.error("Gemini embedding failed:", e.message);
     return [];
   }

@@ -1,0 +1,51 @@
+# Phase 4: Knowledge Graph, Related Items & Semantic Search
+
+The AI foundation laid out using Qdrant vector embeddings can now be aggressively leveraged for high-tier features: A D3.js Knowledge Graph, context-aware "Related Items" panels, and a core Semantic Search engine.
+
+## Proposed Changes
+
+### 1. Backend: Vector Similarity APIs
+
+#### [MODIFY] `src/utils/qdrant.js`
+- **`recommendSimilar(itemId, userId)`**: Maps the native Qdrant `recommend()` method to instantly find geometrically similar vectors without recalculating embeddings.
+- **`embedText(text)`**: Ensure the text-embedding module natively interfaces with Qdrant for semantic search queries.
+
+#### [NEW] `src/controllers/graph.controller.js`
+- **`GET /api/items/graph`**: Fetches all user vectors. Performs an *O(n²)* Cosine Similarity pairing (efficient at standard dashboard payload sizes). Yields a structural payload: `{ nodes: [], links: [] }` targeting pairs with similarities `> 0.65`.
+- **`GET /api/items/:id/related`**: A highly focused proxy for `recommendSimilar`.
+- **`POST /api/items/search`**: Takes a string query, sends it to `gemini-embedding-001`, and queries Qdrant for items closest to that meaning.
+
+#### [MODIFY] `src/routes/items.routes.js`
+- Attach the newly defined endpoints.
+
+---
+
+### 2. Frontend: D3.js Visualization & UI
+
+#### [NEW Dependency] `react-force-graph-2d` & `d3-force`
+- Integrates a hardware-accelerated Canvas wrapper around raw `d3.js` force engines—the industry standard for React-based graph visuals.
+
+#### [NEW] `src/pages/Graph.jsx`
+- Initializes a full-page Canvas drawing the semantic relationships.
+- Nodes will portray user documents. Edges (links) will connect documents mathematically deemed "related".
+- Contains interactive hover logic (highlighting linked neighbors).
+
+#### [MODIFY] `src/pages/Cluster.jsx` (Related Items Panel)
+- Inside your Document Modal, we will add a **"Related Items"** ribbon at the bottom.
+- When an item is selected, it will rapidly hit `/api/items/:id/related` and display 3-5 mathematically similar items as clickable shortcut cards.
+
+#### [NEW] `src/pages/Search.jsx` (Semantic Search)
+- Fulfilling the "there should be a search feature" requirement: Provide a dynamic search page utilizing embeddings so you can search concepts (e.g. "how to build neural networks") and retrieve documents that are semantically a match, even if those exact words never appear.
+
+## User Review Required
+
+> [!IMPORTANT]  
+> Rendering a D3.js force graph requires the industry-standard package `react-force-graph-2d`. Are you okay with me installing this dependency into your frontend?
+
+> [!TIP]  
+> Regarding Semantic Search: Since embedding processing takes ~1 second via the Gemini API, I'll execute search requests upon pressing an "Enter" key or a "Search" button, rather than real-time "as-you-type" queries. Does that work for you?
+
+## Verification Plan
+1. **Related Items:** Clicking an item in the Clusters view will successfully load its conceptually matching neighbors instantly.
+2. **Graph Build:** The `/graph` route visually generates node clouds.
+3. **Semantic Querying:** Searching abstracts will return related URLs based on deep semantic meaning.
