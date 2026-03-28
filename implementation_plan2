@@ -1,0 +1,43 @@
+# Phase 3: Background Processing & Knowledge Graph Integration
+
+You have added the foundational utilities [tagger.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/utils/tagger.js), [embeddings.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/utils/embeddings.js), [qdrant.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/utils/qdrant.js), and [itemworker.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/workers/itemworker.js). 
+To fully integrate these into the Smart-search API using BullMQ, we need to adapt the files to work flawlessly with our ES Module setup and existing data models.
+
+## User Review Required
+> [!IMPORTANT]
+> **Redis Requirement:** BullMQ requires a running Redis server. In development, you will need a local Redis server running on port `6379`. Make sure you have Redis installed.
+>
+> **Qdrant Requirement:** You will also need a Qdrant vector database running locally on port `6333` (as defined in [qdrant.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/utils/qdrant.js)).
+
+## Proposed Changes
+
+### Queue & Worker Setup
+- **Fix Import Paths**: Add [.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/server.js) extensions in all worker and util files because we are using ES Modules (`"type": "module"`). Fix the relative paths to correctly reference [item.model.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/models/item.model.js) and [scraper.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/services/scraper.js).
+- **Worker Logic Update**: Refactor [itemworker.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/workers/itemworker.js) to correctly load the item from MongoDB *first*, which allows us to process both URLs (by scraping) and PDFs (which have their text already extracted during upload).
+- **Server Bootstrapping**: Import the worker in [server.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/server.js) so it automatically starts listening to the queue when the backend boots up.
+
+### API Controllers & Models
+#### [MODIFY] [item.model.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/models/item.model.js)
+Add a `status` field (`enum: ["pending", "ready", "failed"]`, `default: "pending"`) to the Item model so the frontend can display loading states while the queue processes the content.
+
+#### [MODIFY] [item.controller.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/controllers/item.controller.js)
+Update the `POST /api/items` logic:
+1. Create the [Item](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/items/hook/useItems.jsx#23-36) in MongoDB with `status: "pending"`.
+2. Push a background job to `itemQueue` via BullMQ (`await itemQueue.add(...)`).
+3. Immediately return a `201 Created` to the user so the UI feels instant.
+
+### Dependencies
+- Install required packages: `npm install bullmq ioredis @qdrant/js-client-rest`
+
+## Verification Plan
+
+### Automated Tests
+- N/A
+
+### Manual Verification
+1. Ensure Redis (`localhost:6379`) and Qdrant (`localhost:6333`) are running locally via Docker.
+2. Ensure `GEMINI_API_KEY` is present in your [.env](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/.env).
+3. Submit a new URL via the React frontend.
+4. Verify the frontend instantly shows the item in the list.
+5. Watch the backend terminal to see BullMQ log `Processing item...` and log out the generated Gemini tags.
+6. Verify MongoDB updates the item from `pending` to `ready`.

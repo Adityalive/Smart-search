@@ -185,6 +185,11 @@ const Home = () => {
                     ) : (
                       <span className="text-xs text-purple-400 truncate block">Stored PDF</span>
                     )}
+                    {item.status === 'pending' && (
+                      <span className="text-xs font-semibold px-2 py-0.5 mt-1.5 inline-block bg-yellow-500/10 text-yellow-500 rounded border border-yellow-500/20 shadow-sm shadow-yellow-500/10">
+                        <span className="animate-pulse">Processing AI...</span>
+                      </span>
+                    )}
                   </div>
                 </div>
                 

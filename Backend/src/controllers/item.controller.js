@@ -1,7 +1,7 @@
 import { validationResult } from "express-validator";
 import Item from "../models/item.model.js";
-import { extractUrlContent } from "../services/scraper.js";
 import { extractPdfContent } from "../services/pdf.js";
+import itemQueue from "../queues/itemQueues.js";
 
 // POST /api/items — save a new link or upload file
 export const saveItem = async (req, res) => {
@@ -20,6 +20,7 @@ export const saveItem = async (req, res) => {
         if (req.file) {
             if (req.file.mimetype === 'application/pdf') {
                 type = "pdf";
+                // We keep PDF extraction sync because the buffer is in-memory and hard to send via redis easily
                 content = await extractPdfContent(req.file.buffer);
                 title = title || req.file.originalname;
             } else if (req.file.mimetype.startsWith("image/")) {
@@ -30,10 +31,6 @@ export const saveItem = async (req, res) => {
         // If a URL was provided
         else if (url) {
             type = "url";
-            const scrapedData = await extractUrlContent(url);
-            title = title || scrapedData.title || url;
-            description = scrapedData.description;
-            content = scrapedData.content;
         } 
         // Neither was provided
         else {
@@ -51,6 +48,7 @@ export const saveItem = async (req, res) => {
             title,
             description,
             content,
+            status: "pending",
             tags: Array.isArray(tags) ? tags : [],
         };
         
@@ -58,7 +56,15 @@ export const saveItem = async (req, res) => {
         if (collectionId) itemData.collectionId = collectionId;
 
         const item = await Item.create(itemData);
-        return res.status(201).json({ message: "Item saved successfully.", item });
+
+        // Add to background processing queue (for scraping URLs, or doing AI Tagging/Embedding for both)
+        await itemQueue.add("process-item", {
+            itemId: item._id,
+            url: item.url,
+            userId: req.user.id,
+        });
+
+        return res.status(201).json({ message: "Item saved successfully. Processing in background.", item });
     } catch (error) {
         console.error("Save item error:", error);
         return res.status(500).json({ message: "Server error. Please try again." });
