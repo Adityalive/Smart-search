@@ -1,4 +1,6 @@
 // popup.js - The brain of the extension popup
+const API_URL = "http://localhost:3000/api/items"; // Update this to your Render URL after deployment
+
 document.addEventListener('DOMContentLoaded', async () => {
   const saveUrlBtn = document.getElementById('save-url');
   const saveImageBtn = document.getElementById('save-image');
@@ -28,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const saveToBackend = async (payload) => {
     try {
-      const response = await fetch('http://localhost:3000/api/items', {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,6 @@
 // background.js - service worker for context menu
+const API_URL = "http://localhost:3000/api/items"; // Update this to your Render URL after deployment
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "save-image-cm",
@@ -35,7 +37,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   try {
-    const response = await fetch('http://localhost:3000/api/items', {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

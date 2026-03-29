@@ -3,6 +3,11 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import authRouter from "./routes/auth.routes.js";
 import itemRouter from "./routes/items.routes.js";
@@ -30,6 +35,12 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ─── Static Files ────────────────────────────────────────────────────────
+// Serve the built frontend from the 'public/dist' directory
+app.use(express.static(path.join(__dirname, "../public/dist")));
+// Also serve top-level public files (like install.html)
+app.use(express.static(path.join(__dirname, "../public")));
+
 // ─── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
 app.use("/api/items", itemRouter);
@@ -39,9 +50,15 @@ app.get("/", (req, res) => {
     res.json({ message: "Smart-search API is running 🚀" });
 });
 
-// ─── 404 Handler ───────────────────────────────────────────────────────────
+// ─── Client-side Routing ──────────────────────────────────────────────────
+// For any other GET request that doesn't match an API route, serve the React app
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../public/dist/index.html"));
+});
+
+// ─── 404 Handler (only for undefined POST/PUT etc) ─────────────────────────
 app.use((req, res) => {
-    res.status(404).json({ message: `Route ${req.originalUrl} not found.` });
+    res.status(404).json({ message: `Resource ${req.originalUrl} not found.` });
 });
 
 // ─── Global Error Handler ──────────────────────────────────────────────────
