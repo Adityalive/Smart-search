@@ -36,10 +36,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Static Files ────────────────────────────────────────────────────────
-// Serve the built frontend from the 'public/dist' directory
-app.use(express.static(path.join(__dirname, "../public/dist")));
-// Also serve top-level public files (like install.html)
-app.use(express.static(path.join(__dirname, "../public")));
+// Serve the built frontend from the 'src/public/dist' directory
+app.use(express.static(path.join(__dirname, "public/dist")));
+// Also serve other public files (like install.html) from 'src/public'
+app.use(express.static(path.join(__dirname, "public")));
 
 // ─── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
