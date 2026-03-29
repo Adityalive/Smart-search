@@ -49,6 +49,28 @@ import mongoose from "mongoose";
                 type: mongoose.Schema.Types.ObjectId,
                 ref: "Collection",
             },
+            sourceType: {
+                type: String,
+                default: "Article", // Tutorial, News, Research Paper, Image, Video, PDF
+            },
+            wordCount: {
+                type: Number,
+                default: 0,
+            },
+            isPaywalled: {
+                type: Boolean,
+                default: false,
+            },
+            hasEmbedding: {
+                type: Boolean,
+                default: false,
+            },
+            processedAt: {
+                type: Date,
+            },
+            failReason: {
+                type: String,
+            },
         },
         { timestamps: true }
     );

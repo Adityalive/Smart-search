@@ -1,4 +1,5 @@
 import { getAllUserPoints } from "../utils/qdrant.js";
+import { kMeansClustering } from "../utils/kmeans.js";
 
 // Helper: Dot product divided by magnitudes
 function cosineSimilarity(vecA, vecB) {
@@ -40,8 +41,9 @@ export const getClusters = async (req, res) => {
             return res.status(200).json({ clusters: [] });
         }
 
-        // Hardcoded distinction groups based on user request + AI Topic fallback
-        const categoryMap = new Map();
+        // 1. Separation for items requiring K-Means vs Deterministic folders
+        const itemsToCluster = [];
+        const deterministicClusters = new Map(); // For Domain, Media, and Tag-based folders
 
         for (const point of points) {
             if (!point.payload) continue;
@@ -49,72 +51,106 @@ export const getClusters = async (req, res) => {
             const data = point.payload;
             const url = (data.url || "").toLowerCase();
             const tags = data.tags || [];
-            
-            let category = "Miscellaneous";
-            
-            // 1. Explicit domain routing
-            if (url.includes("youtube.com") || url.includes("youtu.be")) {
+            const st = (data.sourceType || "").toLowerCase();
+            const t = (data.title || "").toLowerCase();
+            const u = (data.url || "").toLowerCase();
+
+            let category = null;
+
+            // A. Domain specific checks
+            if (u.includes("youtube.com") || u.includes("youtu.be")) {
                 category = "YouTube";
-            } else if (url.includes("twitter.com") || url.includes("x.com")) {
+            } else if (u.includes("twitter.com") || u.includes("x.com")) {
                 category = "X (Twitter)";
-            } else if (url.includes("google.com") || url.includes("google.co")) {
+            } else if (u.includes("google.com") || u.includes("google.co")) {
                 category = "Google";
-            } else if (url.includes("instagram.com")) {
+            } else if (u.includes("instagram.com")) {
                 category = "Instagram";
-            } else if (url.includes("linkedin.com")) {
+            } else if (u.includes("linkedin.com")) {
                 category = "LinkedIn";
-            } else {
-                // 2. High-level topic routing via AI tags (React, AI, etc.)
-                // Filter out non-descriptive media types so we grab actual topics
-                const meaningfulTags = tags.filter(t => {
-                    const lt = t.toLowerCase();
-                    return lt !== "article" && lt !== "tutorial" && lt !== "video" && lt !== "pdf" && lt !== "link";
+            }
+            // B. Media specific checks
+            else if (st === "image" || t.endsWith(".jpg") || t.endsWith(".jpeg") || t.endsWith(".png") || t.endsWith(".webp")) {
+                category = "Images";
+            } else if (st === "video" || t.endsWith(".mp4") || t.endsWith(".mov") || t.endsWith(".avi")) {
+                category = "Videos";
+            } else if (st === "pdf" || t.endsWith(".pdf") || u.endsWith(".pdf")) {
+                category = "PDF Documents";
+            }
+            // C. Tag-based Topic checks (RESTORED logic)
+            else {
+                const meaningfulTags = tags.filter(tag => {
+                    const lt = tag.toLowerCase();
+                    return !["article", "link", "pdf", "image", "video", "tutorial"].includes(lt);
                 });
-                
+
                 if (meaningfulTags.length > 0) {
-                    category = meaningfulTags[0]; // grab the highest confidence topic tag
-                } else if (data.title) {
-                    category = data.title.split(" ")[0]; // fallback to first word of title
+                    category = meaningfulTags[0]; // first meaningful tag defines the folder
                 }
             }
 
-            const normalizedCategory = category.toLowerCase();
-            
-            if (!categoryMap.has(normalizedCategory)) {
-                categoryMap.set(normalizedCategory, {
-                    name: category,
-                    items: []
-                });
-            }
-            
-            categoryMap.get(normalizedCategory).items.push({
-                _id: data.mongodbId || point.id, // Fallback to Qdrant ID if missing
+            const itemPayload = {
+                _id: data.mongodbId || point.id,
                 url: data.url,
                 title: data.title || "Untitled Document",
                 tags: data.tags || [],
                 description: data.description || "",
                 type: data.sourceType?.toLowerCase() === "article" ? "url" : data.url ? "url" : "pdf",
-                sourceType: data.sourceType
+                sourceType: data.sourceType,
+                vector: point.vector
+            };
+
+            if (category) {
+                const norm = category.toLowerCase();
+                if (!deterministicClusters.has(norm)) {
+                    deterministicClusters.set(norm, { name: category, items: [] });
+                }
+                deterministicClusters.get(norm).items.push(itemPayload);
+            } else {
+                // Truly miscellaneous items (no domain, no specific topic tags)
+                itemsToCluster.push(itemPayload);
+            }
+        }
+
+        // 2. Perform Topic Clustering only for the leftover items
+        const topicClusters = [];
+        if (itemsToCluster.length > 0) {
+            const k = Math.min(5, Math.ceil(itemsToCluster.length / 8));
+            const clusters = kMeansClustering(itemsToCluster, k);
+
+            clusters.forEach((cluster, idx) => {
+                const tagRanks = {};
+                for (const p of cluster.points) {
+                    for (const tag of p.tags) {
+                        tagRanks[tag] = (tagRanks[tag] || 0) + 1;
+                    }
+                }
+                
+                const topTags = Object.keys(tagRanks).sort((a,b) => tagRanks[b] - tagRanks[a]);
+                const cloudName = topTags[0] || `Miscellaneous ${idx + 1}`;
+                
+                topicClusters.push({
+                    name: cloudName,
+                    items: cluster.points
+                });
             });
         }
 
-        // Output formatting
-        const finalClusters = Array.from(categoryMap.values()).map((c, index) => {
-            return {
-                id: `cluster_${index}`,
-                name: c.name,
-                itemCount: c.items.length,
-                items: c.items
-            };
-        });
-
-        // Group size sorting (largest folders first)
-        finalClusters.sort((a, b) => b.items.length - a.items.length);
+        // 3. Assemble and sort groups
+        const finalClusters = [
+            ...Array.from(deterministicClusters.values()),
+            ...topicClusters
+        ].map((c, index) => ({
+            id: `cluster_${index}`,
+            name: c.name,
+            itemCount: c.items.length,
+            items: c.items
+        })).sort((a, b) => b.itemCount - a.itemCount);
 
         return res.status(200).json({ clusters: finalClusters });
 
     } catch (error) {
         console.error("Clustering error:", error);
-        return res.status(500).json({ message: "Failed to generate clusters dynamically." });
+        return res.status(500).json({ message: "Failed to generate clusters." });
     }
 };

@@ -1,0 +1,69 @@
+# Implementation Plan: Chrome Extension for Smart-search
+
+This plan outlines the creation of a Chrome extension that allows users to save URLs, images, and videos directly to their Smart-search knowledge base. It also includes the necessary integration with the React frontend to share the authentication token.
+
+## User Review Required
+
+> [!IMPORTANT]
+> To test the extension once it's built, you will need to:
+> 1. Open Chrome and navigate to `chrome://extensions/`.
+> 2. Enable **Developer mode** (toggle in the top right).
+> 3. Click **Load unpacked** and select the `extension/` folder in your project directory.
+
+## Proposed Changes
+
+### 1. Project Structure
+
+I will create a new `extension/` directory at the root of the project with the following structure:
+```text
+extension/
+├── manifest.json
+├── popup.html
+├── popup.js
+├── background.js
+├── content.js (optional/minimal)
+└── icons/
+    ├── icon16.png
+    ├── icon48.png
+    └── icon128.png
+```
+
+### 2. Chrome Extension Files
+
+#### [NEW] [manifest.json](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/manifest.json)
+- Define permissions: `tabs`, `storage`, `contextMenus`, and host permissions for the backend API.
+- Register the `background.js` service worker.
+- Define the `action` for the `popup.html`.
+
+#### [NEW] [popup.html](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/popup.html)
+- Create a clean, modern UI matching the app's aesthetic (dark mode, rounded corners).
+- Add three buttons: **Save URL**, **Save Image**, **Save Video**.
+
+#### [NEW] [popup.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/popup.js)
+- Retrieve the current tab's URL and title.
+- Fetch the authentication token from `chrome.storage.local`.
+- Send a `POST` request to the backend API (`/api/items`) to save the content.
+
+#### [NEW] [background.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/background.js)
+- Create a right-click context menu with options for "Save Image" and "Save Video".
+- Handle context menu clicks by sending requests to the backend.
+
+### 3. Frontend Integration
+
+#### [MODIFY] [useAuth.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/auth/hook/useAuth.jsx)
+- Update `handleLogin` to also save the JWT token to `chrome.storage.local` if the extension is detected. This allows the extension to "stay logged in" automatically.
+
+---
+
+## Open Questions
+
+> [!NOTE]
+> For the icons, I will generate a set of placeholders. You can replace them later with your preferred design.
+
+## Verification Plan
+
+### Automated/Manual Tests
+1. **Frontend**: Log in to the web app and verify (via DevTools) that the token is saved to `chrome.storage.local`.
+2. **Extension**: Load the extension as "unpacked".
+3. **Popup**: Open the popup on any page and click "Save URL". Verify in the web app's dashboard that the item appears.
+4. **Context Menu**: Right-click an image on a webpage, select "Save Image to Smart-search", and verify the result.

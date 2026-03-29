@@ -1,0 +1,38 @@
+# Phase 6: Memory Resurfacing & Advanced Topic Clustering
+
+Let's implement automated discovery of old memories and deeper semantic categorization.
+
+## Proposed Changes
+
+### 1. Memory Resurfacing Feature
+- **Backend Job (`src/jobs/resurfaceJob.js`)**: 
+  - Use `node-cron` to run a daily task.
+  - Scan for items that were `createdAt` exactly 30, 60, or 90 days ago.
+- **Backend API**: 
+  - `GET /api/items/resurfaced`: Returns items matching the 30/60/90 day window for the logged-in user.
+- **Frontend UI**:
+  - **Sidebar**: Navigate to `/resurface` (Label: "Memory Resurface").
+  - **`MemoryResurface.jsx`**: A grid of "Past Echoes" showing items you saved weeks or months ago.
+
+### 2. Semantic Topic Clustering (Nearest-Neighbor)
+- **Backend Service (`src/utils/kmeans.js`)**: 
+  - Implement a basic JS-based clustering algorithm.
+  - Given all user vectors from Qdrant, group them into $K$ clusters based on vector distance.
+- **Controller Update (`cluster.controller.js`)**:
+  - Keep the deterministic folders (YouTube, X, Images, etc.) for high-level organization.
+  - For all other "Miscellaneous" items, apply the clustering algorithm to form **"Topic Clouds"** automatically.
+
+## User Review Required
+
+> [!IMPORTANT]
+> For **Memory Resurfacing**, should we strictly show items from EXACTLY 30, 60, and 90 days ago, or any item older than 30 days that hasn't been viewed in a while?
+> (Current Plan: Strict 30/60/90 windows).
+
+> [!NOTE]
+> Since we're doing the clustering in the browser/Node.js environment (not inside Qdrant's engine directly for custom logic), processing more than 1,000 active items might take a few seconds of compute time on the server.
+
+## Verification Plan
+1. Manually set an item's `createdAt` in MongoDB to 30 days ago.
+2. Verify it appears in the `/api/items/resurfaced` endpoint.
+3. Observe the "Miscellaneous" section in Clusters being replaced by AI-named "Topic Clouds" (e.g., "Web Development", "Healthy Cooking").
+4. Add the Sidebar navigation and verify the page loads with loading states.

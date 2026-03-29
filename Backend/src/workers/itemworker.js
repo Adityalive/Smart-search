@@ -1,6 +1,6 @@
 // backend/workers/itemWorker.js
 import { Worker } from "bullmq";
-import { generateTagsWithDetection } from "../utils/tagger.js";
+import { generateTagsWithDetection, generateImageTags } from "../utils/tagger.js";
 import { getEmbedding } from "../utils/embeddings.js";
 import { upsertItem } from "../utils/qdrant.js";
 import { extractUrlContent } from "../services/scraper.js";
@@ -10,6 +10,7 @@ const connection = {
   host: process.env.REDIS_HOST || "localhost",
   port: Number(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
+  family: 4, // Force IPv4 for stable Redis Cloud connections
 };
 
 const worker = new Worker(
@@ -22,13 +23,14 @@ const worker = new Worker(
     const item = await Item.findById(itemId);
     if (!item) throw new Error(`Item ${itemId} not found in DB`);
 
-    // ─── 2. Scrape URL if needed ──────────────────────────────────────────────
+    // ─── 2. Scrape URL if needed (Skip for media) ───────────────────────────
     let text = item.content || "";
     let sourceType = item.sourceType || "Article";
     let wordCount = item.wordCount || 0;
     let isPaywalled = item.isPaywalled || false;
+    let isMedia = sourceType === "Image" || sourceType === "Video";
 
-    if (!text && url && item.type === "url") {
+    if (!isMedia && !text && url && item.type === "url") {
       console.log(`[Worker] Scraping URL: ${url}`);
 
       const scraped = await extractUrlContent(url);
@@ -54,7 +56,7 @@ const worker = new Worker(
     }
 
     // ─── 3. Fail gracefully if no text to process ────────────────────────────
-    if (!text || text.trim().length < 50) {
+    if (!isMedia && (!text || text.trim().length < 50)) {
       console.warn(`[Worker] Not enough text to process for item: ${itemId}`);
       item.status = "failed";
       item.failReason = !text
@@ -65,18 +67,39 @@ const worker = new Worker(
     }
 
     // ─── 4. Generate tags with Gemini ─────────────────────────────────────────
-    console.log(`[Worker] Generating tags (sourceType: ${sourceType})...`);
+    console.log(`[Worker] Generating AI Metadata (sourceType: ${sourceType})...`);
     let tags = [];
     let detectedType = sourceType;
 
     try {
-      const result = await generateTagsWithDetection(text, sourceType);
-      tags = result.tags || [];
-      detectedType = result.contentType || sourceType;
-      console.log(`[Worker] Tags generated: ${tags.join(", ")}`);
+      if (sourceType === "Image" && url) {
+          // Send Image SDK specifically to Vision AI
+          const visionData = await generateImageTags(url);
+          if (!item.title) item.title = visionData.title;
+          if (!item.description) item.description = visionData.description;
+          tags = visionData.tags || ["Image", "Media"];
+          text = visionData.description || "A visual image"; 
+          detectedType = "Image";
+      } else if (sourceType === "Video") {
+          // Hardcode for Videos currently
+          if (!item.title) item.title = "Uploaded Video";
+          tags = ["Video", "Media", "Visual"];
+          text = "A video file hosted on ImageKit.";
+          detectedType = "Video";
+      } else if (sourceType === "PDF") {
+          // For PDFs, we want to keep them in "PDF Documents" specifically
+          const result = await generateTagsWithDetection(text, sourceType);
+          tags = result.tags || [];
+          detectedType = "PDF"; // Force override to keep them grouped together as requested
+      } else {
+          // Regular AI document tagging for URLs
+          const result = await generateTagsWithDetection(text, sourceType);
+          tags = result.tags || [];
+          detectedType = result.contentType || sourceType;
+      }
+      console.log(`[Worker] AI metadata determined. Type: ${detectedType}`);
     } catch (e) {
-      // tagging failed — not fatal, continue with empty tags
-      console.error(`[Worker] Tagging failed: ${e.message}`);
+      console.error(`[Worker] Metadata generation failed: ${e.message}`);
     }
 
     // ─── 5. Generate embedding with Gemini ───────────────────────────────────
@@ -110,6 +133,7 @@ const worker = new Worker(
           tags: tags,
           sourceType: detectedType,
           wordCount: wordCount,
+          createdAt: item.createdAt, // store timestamp for resurfacing UI
         });
         console.log(`[Worker] Upserted to Qdrant ✓`);
       } catch (e) {

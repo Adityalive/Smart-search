@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../features/auth/hook/useAuth';
-import { Home, FolderTree, LogOut, Network, Search } from 'lucide-react';
+import { Home, FolderTree, LogOut, Network, Search, Sparkles } from 'lucide-react';
 
 const Layout = () => {
   const { user, handleLogout } = useAuth();
@@ -71,6 +71,20 @@ const Layout = () => {
           >
             <Search size={20} />
             <span className="font-medium">Semantic Search</span>
+          </NavLink>
+
+          <NavLink
+            to="/resurface"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                isActive
+                  ? 'bg-amber-600/10 text-amber-400'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+              }`
+            }
+          >
+            <Sparkles size={20} />
+            <span className="font-medium">Memory Resurface</span>
           </NavLink>
         </nav>
 

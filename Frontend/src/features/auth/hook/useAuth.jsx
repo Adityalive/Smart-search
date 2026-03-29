@@ -11,6 +11,14 @@ export const useAuth = () => {
         try {
             const response = await register(name, email, password);
             dispatch(setUser(response.user));
+            
+            // Sync with Chrome Extension
+            if (response.token) {
+                window.dispatchEvent(new CustomEvent("SMART_SEARCH_LOGIN", {
+                    detail: { token: response.token }
+                }));
+            }
+
             dispatch(setLoading(false));
             return response;
         } catch (error) {
@@ -25,6 +33,14 @@ export const useAuth = () => {
         try {
             const response = await login(email, password);
             dispatch(setUser(response.user));
+            
+            // Sync with Chrome Extension
+            if (response.token) {
+                window.dispatchEvent(new CustomEvent("SMART_SEARCH_LOGIN", {
+                    detail: { token: response.token }
+                }));
+            }
+
             dispatch(setLoading(false));
             return response;
         } catch (error) {
@@ -39,6 +55,14 @@ export const useAuth = () => {
         try {
             const response = await getme();
             dispatch(setUser(response.user));
+            
+            // Sync with Chrome Extension on initial load
+            if (response.token) {
+                window.dispatchEvent(new CustomEvent("SMART_SEARCH_LOGIN", {
+                    detail: { token: response.token }
+                }));
+            }
+
             dispatch(setLoading(false));
             return response;
         } catch (error) {

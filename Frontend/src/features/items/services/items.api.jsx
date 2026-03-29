@@ -18,3 +18,19 @@ export const getItems = async () => {
   const response = await api.get("/");
   return response.data;
 };
+
+export const getClusters = async () => {
+    const response = await api.get("/clusters");
+    return response.data;
+};
+
+export const getResurfacedItems = async (days = 30) => {
+    const response = await api.get(`/resurfaced?days=${days}`);
+    return response.data;
+};
+
+export const searchSimilar = async (query) => {
+    const response = await api.get(`/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+};
+

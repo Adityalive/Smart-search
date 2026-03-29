@@ -1,21 +1,33 @@
 import { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useAuth } from '../../auth/hook/useAuth';
-import { saveItem as apiSaveItem, getItems as apiGetItems } from '../services/items.api.jsx';
-import { setItems, addItem as addReduxItem, setLoading, setError } from '../itemsSlice';
+import { saveItem as apiSaveItem, getItems as apiGetItems, getResurfacedItems as apiGetResurfacedItems } from '../services/items.api.jsx';
+import { setItems, setResurfacedClusters, addItem as addReduxItem, setLoading, setError } from '../itemsSlice';
 
 export const useItems = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
   
   // Select items, loading, and error from the Redux store
-  const { items, loading, error } = useSelector((state) => state.items);
+  const { items, resurfacedClusters, loading, error } = useSelector((state) => state.items);
 
   const fetchItems = async () => {
     dispatch(setLoading(true));
     try {
       const data = await apiGetItems();
       dispatch(setItems(data.items || []));
+      dispatch(setLoading(false));
+    } catch (e) {
+      dispatch(setError(e.response?.data?.message || e.message));
+      dispatch(setLoading(false));
+    }
+  };
+
+  const fetchResurfacedItems = async (days = 30) => {
+    dispatch(setLoading(true));
+    try {
+      const data = await apiGetResurfacedItems(days);
+      dispatch(setResurfacedClusters(data.clusters || []));
       dispatch(setLoading(false));
     } catch (e) {
       dispatch(setError(e.response?.data?.message || e.message));
@@ -44,5 +56,5 @@ export const useItems = () => {
     }
   }, [user]);
 
-  return { items, loading, error, addItem, fetchItems };
+  return { items, resurfacedClusters, loading, error, addItem, fetchItems, fetchResurfacedItems };
 };

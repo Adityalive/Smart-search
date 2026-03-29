@@ -5,15 +5,16 @@ const storage = multer.memoryStorage();
 
 export const upload = multer({
     storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+    limits: { fileSize: 50 * 1024 * 1024 }, // Extended to 50MB to accommodate standard video files
     fileFilter: (req, file, cb) => {
-        const filetypes = /pdf|jpeg|jpg|png/;
+        // Allow pdf, standard images, and standard videos
+        const filetypes = /pdf|jpeg|jpg|png|mp4|webm|avi|mov/;
         const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
+        const mimetype = /pdf|image\/|video\//.test(file.mimetype);
 
         if (mimetype && extname) {
             return cb(null, true);
         }
-        cb(new Error("Only PDFs and Images are allowed!"));
+        cb(new Error("Only PDFs, Images, and Videos are allowed!"));
     },
 });

@@ -7,6 +7,7 @@ import Protected from "../features/auth/Components/Protected.jsx";
 import Layout from "../components/Layout.jsx";
 import Graph from "../pages/Graph.jsx";
 import Search from "../pages/Search.jsx";
+import Resurface from "../pages/Resurface.jsx";
 
 const appRouter = createBrowserRouter([
     {
@@ -28,6 +29,10 @@ const appRouter = createBrowserRouter([
             {
                 path: "search",
                 element: <Search />, // Qdrant Embedded Semantic Search
+            },
+            {
+                path: "resurface",
+                element: <Resurface />, // Memory Resurfacing cumulative view
             }
         ]
     },

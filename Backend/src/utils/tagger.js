@@ -1,5 +1,6 @@
 // backend/utils/tagger.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import axios from "axios";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
@@ -75,11 +76,62 @@ Return ONLY the JSON array:`;
 }
 
 // main function — auto detects type then tags
-async function generateTagsWithDetection(text) {
-  const contentType = await detectContentType(text);
+async function generateTagsWithDetection(text, typeHint) {
+  // If we already know the source type from upload (Image, Video, pdf) skip detection
+  let contentType = typeHint;
+  if (!contentType || contentType === "article") {
+      contentType = await detectContentType(text);
+  } else if (contentType === "Article") { // From scraper fallback
+      contentType = await detectContentType(text);
+  }
+  
   console.log(`Detected content type: ${contentType}`);
   const tags = await generateTags(text, contentType);
   return { tags, contentType };
 }
 
-export { generateTags, detectContentType, generateTagsWithDetection };
+// Vision AI: analyze an image URL directly
+async function generateImageTags(imageUrl) {
+  try {
+     const imageResp = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+     
+     const mimeType = imageResp.headers['content-type'] || 'image/jpeg';
+     const base64Str = Buffer.from(imageResp.data).toString('base64');
+     
+     const imagePart = {
+         inlineData: {
+            data: base64Str,
+            mimeType,
+         }
+     };
+
+     const prompt = `
+     You are an expert visual analyzer and knowledge indexer.
+     Please look at this uploaded image and generate a highly accurate Title, a 2-3 sentence visual Description, and between 4 and 7 categorical tags for a vector database.
+     
+     RULES:
+     1. Return exactly this JSON structure. DO NOT use markdown code blocks (\`\`\`json). Just the raw JSON format:
+     {
+         "title": "A short, descriptive title",
+         "description": "2-3 sentences visually detailing the content...",
+         "tags": ["Tag1", "Tag2", "Tag3", "Image"]
+     }
+     `;
+     
+     const result = await model.generateContent([prompt, imagePart]);
+     const raw = result.response.text();
+     const cleaned = raw.replace(/```json|```/g, "").trim();
+     return JSON.parse(cleaned);
+
+  } catch (e) {
+     console.error("Gemini Vision AI failed:", e.message);
+     // Fallback if Vision AI fails
+     return {
+         title: "Uploaded Image",
+         description: "An image file uploaded to the knowledge base.",
+         tags: ["Image", "Media", "Visual"]
+     };
+  }
+}
+
+export { generateTags, detectContentType, generateTagsWithDetection, generateImageTags };

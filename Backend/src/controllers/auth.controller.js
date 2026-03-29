@@ -41,6 +41,7 @@ export const register = async (req, res) => {
         return res.status(201).json({
             message: "User registered successfully.",
             user: { id: user._id, name: user.name, email: user.email },
+            token: token, // Added for Chrome extension transparency
         });
     } catch (error) {
         console.error("Register error:", error);
@@ -76,6 +77,7 @@ export const login = async (req, res) => {
         return res.status(200).json({
             message: "Logged in successfully.",
             user: { id: user._id, name: user.name, email: user.email },
+            token: token, // Added for Chrome extension transparency
         });
     } catch (error) {
         console.error("Login error:", error);
@@ -96,7 +98,12 @@ export const getme = async (req, res) => {
     if (!user) {
         return res.status(404).json({ message: "User not found." });
     }
+    
+    // Generate a fresh token so the frontend can sync it with the Chrome Extension on initial load
+    const token = generateToken(user);
+    
     return res.status(200).json({
-        user
+        user,
+        token
     });
 }

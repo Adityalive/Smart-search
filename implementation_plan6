@@ -1,0 +1,38 @@
+# Phase 5: ImageKit Integration & Vision AI Clustering
+
+Let's integrate media hosting capabilities so your knowledge base can intelligently store, cluster, and "understand" images and videos.
+
+## Proposed Changes
+
+### 1. New Utilities & Dependencies
+- **[NEW Dependency]** `imagekit` to handle backend uploads.
+- **[NEW] `src/utils/imagekit.js`**: A centralized service configuring the ImageKit SDK and exposing a reliable upload function.
+
+### 2. Backend Modifications
+
+#### [MODIFY] `src/controllers/item.controller.js`
+- When a `file` is uploaded, explicitly check its mimetype buffer (`image/png`, `video/mp4`, etc.). 
+- If media, instantly upload it strictly via `ImageKit` before background processing begins.
+- Save the resulting ImageKit URL as the item's `url`, and set its fundamental `type` to "media".
+
+#### [MODIFY] `src/workers/itemworker.js` & `src/utils/tagger.js`
+- Enhance the AI tagger to utilize **Gemini's Vision AI capabilities**. If an image is presented, we forward the actual image data to Gemini to visually interpret and describe the image, extracting semantic tags and a comprehensive title (e.g., "A diagram outlining Kubernetes container orchestration").
+- This textual description will then be heavily vectorized and placed firmly into Qdrant for graph and cluster matching!
+
+#### [MODIFY] `src/controllers/cluster.controller.js`
+- Expand the explicit deterministic routing architecture:
+   - Any document with a media-type of Image intrinsically maps to an **"Images"** folder in the Clusters dashboard.
+   - Any document with a media-type of Video inherently maps to a **"Videos"** folder.
+
+## User Review Required
+
+> [!WARNING]
+> I checked your `.env` file, but I **cannot find the ImageKit API credentials** you mentioned. I need 3 things to make this work: `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, and `IMAGEKIT_URL_ENDPOINT`. Could you please paste them here in the chat, or add them to your `.env` file manually?
+
+> [!IMPORTANT]
+> Because we are clustering purely by exact folder matching ("Images" and "Videos"), this means all images will live entirely inside the "Images" folder, ignoring their conceptual semantic AI tag routing for overarching clusters. Is this precisely how you want it organized?
+
+## Verification Plan
+1. Uploading a `.png` file converts to a remote ImageKit URL.
+2. The AI successfully reads the uploaded image and dynamically assigns a visually-correct title/description.
+3. The Clusters Page generates deterministic "Images" and "Videos" folders encapsulating all media.

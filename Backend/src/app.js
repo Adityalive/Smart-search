@@ -15,8 +15,8 @@ app.use(
     cors({
         origin: (origin, callback) => {
             const allowed = process.env.CLIENT_URL || "http://localhost:5174";
-            // Allow requests with no origin (e.g. mobile apps, curl) or matching origin
-            if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin)) {
+            // Allow requests with no origin, matching origin, or chrome-extension origins
+            if (!origin || origin === allowed || /^http:\/\/localhost:\d+$/.test(origin) || origin.startsWith("chrome-extension://")) {
                 callback(null, true);
             } else {
                 callback(new Error(`CORS: origin ${origin} not allowed`));

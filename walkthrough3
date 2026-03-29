@@ -1,0 +1,38 @@
+# Walkthrough: Smart-search Chrome Extension
+
+I have built the "Smart-search Connector" extension and integrated it with your React frontend. This allows you to save content instantly without leaving the page.
+
+## 📁 Extension Files Created
+
+The extension is located in the `extension/` directory:
+
+- **[manifest.json](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/manifest.json)**: The core manifest defining permissions and background workers.
+- **[popup.html](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/popup.html)**: A modern, dark-themed UI with three capture buttons.
+- **[popup.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/popup.js)**: The logic that captures current tab data and calls the backend.
+- **[background.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/background.js)**: A service worker that enables right-click "Save Image" and "Save Video" functionality.
+- **[content.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/content.js)**: A lightweight content script ready for future highlighting/scraping tasks.
+- **[icons/](file:///c:/Users/KIIT0001/Desktop/Smart-search/extension/icons/)**: Generated placeholder icons for the browser toolbar.
+
+## 🔐 Auth Sync Integration
+
+I modified the following files to ensure the extension stays logged in:
+
+- **[auth.controller.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/controllers/auth.controller.js)**: Now returns the JWT token in the JSON response when you log in or register.
+- **[useAuth.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/auth/hook/useAuth.jsx)**: Automatically detects the Chrome extension and saves your token to `chrome.storage.local` upon successful login.
+
+## 🚀 How to Install & Test
+
+> [!IMPORTANT]
+> Follow these steps to load the extension into your browser:
+>
+> 1. Open Chrome and go to **`chrome://extensions/`**.
+> 2. Enable **Developer mode** in the top-right corner.
+> 3. Click **Load unpacked**.
+> 4. Select the **`extension/`** folder inside your project directory.
+> 5. Log in to your Smart-search web dashboard (this syncs the token).
+> 6. Open any website, click the extension icon, or right-click an image to save!
+
+---
+
+### [task.md](file:///C:/Users/KIIT0001/.gemini/antigravity/brain/98227260-1dcf-42aa-88d2-7a2ec2defeb2/task.md)
+Check the task checklist for the full completion status.
