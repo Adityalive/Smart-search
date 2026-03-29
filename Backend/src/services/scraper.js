@@ -1,6 +1,7 @@
 // backend/services/scraper.js
 import axios from "axios";
 import puppeteer from "puppeteer";
+import * as cheerio from "cheerio";
 
 // ─── Helpers (unchanged from your current code) ───────────────────────────────
 
@@ -56,6 +57,58 @@ const buildFallbackDescription = (content) => {
 const detectPaywall = (text) =>
     /subscribe to (read|continue)|this content is for (paid|premium)|sign in to read/i
         .test(text.slice(0, 1000));
+
+const extractMetadata = async (url) => {
+    try {
+        const response = await axios.get(url, { 
+            timeout: 10000,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+            }
+        });
+        const html = response.data;
+        const $ = cheerio.load(html);
+
+        let image = $('meta[property="og:image"]').attr('content') || $('meta[name="twitter:image"]').attr('content') || '';
+        let siteName = $('meta[property="og:site_name"]').attr('content') || $('meta[name="application-name"]').attr('content') || '';
+        let favicon = $('link[rel="shortcut icon"]').attr('href') || $('link[rel="icon"]').attr('href') || '';
+        
+        // Resolve relative URLs
+        try {
+            if (image && !image.startsWith('http')) image = new URL(image, url).href;
+            if (favicon && !favicon.startsWith('http')) favicon = new URL(favicon, url).href;
+        } catch(e) {}
+
+        let videoId = '';
+        if (url.includes('youtube.com/watch')) {
+            const urlObj = new URL(url);
+            videoId = urlObj.searchParams.get('v') || '';
+        } else if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
+        } else if (url.includes('twitter.com/') || url.includes('x.com/')) {
+            const match = url.match(/\/status\/(\d+)/);
+            if (match) videoId = match[1];
+        }
+
+        const title = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+        const description = $('meta[property="og:description"]').attr('content') || $('meta[name="description"]').attr('content') || '';
+
+        return { image, siteName, favicon, videoId, title, description };
+    } catch (e) {
+        console.warn(`[Scraper] Cheerio metadata extraction failed: ${e.message}`);
+        // Fallback IDs even if fetch fails
+        let videoId = '';
+        if (url.includes('youtube.com/watch')) {
+            try { videoId = new URL(url).searchParams.get('v') || ''; } catch(e){}
+        } else if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1]?.split('?')[0] || '';
+        } else if (url.includes('twitter.com/') || url.includes('x.com/')) {
+            const match = url.match(/\/status\/(\d+)/);
+            if (match) videoId = match[1];
+        }
+        return { image: '', siteName: '', favicon: '', videoId, title: '', description: '' };
+    }
+};
 
 // ─── Scraper 1: Jina Reader ───────────────────────────────────────────────────
 
@@ -178,9 +231,10 @@ const scrapeWithPuppeteer = async (url) => {
 
 export const extractUrlContent = async (url) => {
     const sourceType = detectSourceType(url);
+    const meta = await extractMetadata(url);
 
-    let title = "";
-    let description = "";
+    let title = meta.title || "";
+    let description = meta.description || "";
     let rawContent = "";
     let scrapedBy = "";
 
@@ -188,8 +242,8 @@ export const extractUrlContent = async (url) => {
     try {
         console.log(`[Scraper] Trying Jina for: ${url}`);
         const jina = await scrapeWithJina(url);
-        title = jina.title;
-        description = jina.description;
+        if (jina.title) title = jina.title;
+        if (jina.description) description = jina.description;
         rawContent = jina.rawContent;
         scrapedBy = "jina";
         console.log(`[Scraper] Jina succeeded ✓`);
@@ -208,23 +262,26 @@ export const extractUrlContent = async (url) => {
         try {
             console.log(`[Scraper] Trying Puppeteer for: ${url}`);
             const puppet = await scrapeWithPuppeteer(url);
-            title = puppet.title;
-            description = puppet.description;
+            if (puppet.title) title = puppet.title;
+            if (puppet.description) description = puppet.description;
             rawContent = puppet.content;
             scrapedBy = "puppeteer";
             console.log(`[Scraper] Puppeteer succeeded ✓`);
         } catch (puppeteerError) {
             console.error(`[Scraper] Puppeteer also failed: ${puppeteerError.message}`);
-            // both failed — return empty safe object
-            return {
-                title: "",
-                description: "",
-                content: "",
-                sourceType,
-                wordCount: 0,
-                isPaywalled: false,
-                scrapedBy: "failed",
-            };
+            // if both failed, we still have whatever extractMetadata found
+            if (!title && !description) {
+                return {
+                    title: "",
+                    description: "",
+                    content: "",
+                    sourceType,
+                    wordCount: 0,
+                    isPaywalled: false,
+                    scrapedBy: "failed",
+                };
+            }
+            scrapedBy = "metadata-only";
         }
     }
 
@@ -268,5 +325,9 @@ export const extractUrlContent = async (url) => {
         wordCount,
         isPaywalled,
         scrapedBy,    // "jina" or "puppeteer" — useful for debugging
+        image: meta.image,
+        siteName: meta.siteName,
+        favicon: meta.favicon,
+        videoId: meta.videoId
     };
 };

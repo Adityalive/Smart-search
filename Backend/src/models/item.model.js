@@ -22,6 +22,18 @@ import mongoose from "mongoose";
                 trim: true,
                 // Not required globally anymore because a PDF upload might not have a URL
             },
+            image: {
+                type: String,
+            },
+            favicon: {
+                type: String,
+            },
+            siteName: {
+                type: String,
+            },
+            videoId: {
+                type: String,
+            },
             title: {
                 type: String,
                 trim: true,

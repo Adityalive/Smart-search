@@ -132,7 +132,12 @@ export const getResurfacedItems = async (req, res) => {
                     tags: p.payload.tags || mongoItem.tags || [],
                     description: p.payload.description || mongoItem.description,
                     createdAt: dateVal.toISOString ? dateVal.toISOString() : new Date(dateVal).toISOString(),
-                    vector: p.vector
+                    vector: p.vector,
+                    image: p.payload.image || mongoItem.image,
+                    siteName: p.payload.siteName || mongoItem.siteName,
+                    favicon: p.payload.favicon || mongoItem.favicon,
+                    videoId: p.payload.videoId || mongoItem.videoId,
+                    type: mongoItem.type
                 };
             });
 

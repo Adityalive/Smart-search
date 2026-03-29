@@ -1,9 +1,17 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../features/auth/hook/useAuth';
-import { Home, FolderTree, LogOut, Network, Search, Sparkles } from 'lucide-react';
+import { useHistory } from '../features/history/hook/useHistory';
+import { Home, FolderTree, LogOut, Network, Search, Sparkles, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Layout = () => {
   const { user, handleLogout } = useAuth();
+  const { historyItems } = useHistory();
+  const navigate = useNavigate();
+
+  const handleHistoryClick = (query) => {
+    navigate(`/search?q=${encodeURIComponent(query)}`);
+  };
 
   return (
     <div className="flex h-screen bg-[#111113] text-zinc-100 overflow-hidden">
@@ -87,6 +95,62 @@ const Layout = () => {
             <span className="font-medium">Memory Resurface</span>
           </NavLink>
         </nav>
+
+        {/* History Section */}
+        <div className="flex-1 mt-6 px-4 overflow-hidden flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+          <div className="border-t border-emerald-500/10 pt-6 flex flex-col h-full">
+            {/* Clickable Header → navigates to /history */}
+            <NavLink
+              to="/history"
+              className={({ isActive }) =>
+                `flex gap-3 mb-5 rounded-xl p-2 transition-all ${
+                  isActive ? 'bg-emerald-500/5' : 'hover:bg-emerald-500/[0.03]'
+                }`
+              }
+            >
+              {/* History large text — left */}
+              <h2 className="text-2xl font-black text-emerald-500 leading-none tracking-tighter opacity-80 shrink-0">
+                History
+              </h2>
+
+              {/* Vertical separator */}
+              <div className="w-[1px] bg-emerald-500/20 self-stretch" />
+
+              {/* Preview — right: last 3 items or no-data */}
+              <div className="flex-1 pl-3 flex flex-col justify-center gap-1.5 overflow-hidden">
+                {!historyItems || historyItems.length === 0 ? (
+                  <span className="text-[10px] text-zinc-600 uppercase tracking-widest">No Data</span>
+                ) : (
+                  historyItems.slice(0, 3).map(item => (
+                    <p
+                      key={item._id}
+                      className="text-[10px] text-zinc-500 truncate hover:text-emerald-400 transition-colors"
+                    >
+                      {item.query}
+                    </p>
+                  ))
+                )}
+              </div>
+            </NavLink>
+
+            {/* Recent individual clickable items */}
+            {historyItems && historyItems.length > 0 && (
+              <div className="flex-1 overflow-y-auto space-y-1 scrollbar-hide">
+                {historyItems.slice(0, 8).map(item => (
+                  <button
+                    key={item._id}
+                    onClick={() => handleHistoryClick(item.query)}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[11px] text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/[0.04] transition-all group"
+                    title={item.query}
+                  >
+                    <Clock size={10} className="shrink-0 text-zinc-700 group-hover:text-emerald-500 transition-colors" />
+                    <span className="truncate flex-1">{item.query}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* User Footer Snippet inside Sidebar */}
         <div className="p-6 border-t border-zinc-800">

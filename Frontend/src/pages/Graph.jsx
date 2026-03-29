@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import ForceGraph3D from 'react-force-graph-3d';
+import * as THREE from 'three';
 import { useGraph } from '../features/graph/hook/useGraph';
 import { Activity, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -10,13 +11,31 @@ const Graph = () => {
   const navigate = useNavigate();
   const [windowSize, setWindowSize] = useState([window.innerWidth, window.innerHeight]);
 
-  // Handle window resize dynamically to adjust D3 canvas
-  useEffect(() => {
-    const handleResize = () => setWindowSize([window.innerWidth, window.innerHeight]);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+  // ── ALL hooks must be defined before any early returns ──────────────────────
+  const handleNodeClick = useCallback((node) => {
+    if (!fgRef.current) return;
+    const distance = 100;
+    const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, node.z || 0);
+    fgRef.current.cameraPosition(
+      { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio },
+      node,
+      3000
+    );
+  }, [fgRef]);
+
+  // Color mapper based on semantic tags
+  const getNodeColor = useCallback((node) => {
+      const g = (node.group || '').toLowerCase();
+      if (g === "youtube") return "#ff0000";
+      if (g === "google") return "#4285F4";
+      if (g.includes("x (tw")) return "#1DA1F2";
+      if (g.includes("ai")) return "#a855f7";
+      if (g.includes("react")) return "#61dafb";
+      if (g === "miscellaneous") return "#6b7280";
+      return "#3b82f6";
   }, []);
 
+  // ── Early returns AFTER all hooks ────────────────────────────────────────────
   if (loading && (!graphData || graphData.nodes.length === 0)) {
     return (
       <div className="flex-1 p-8 flex items-center justify-center h-full">
@@ -39,27 +58,6 @@ const Graph = () => {
     );
   }
 
-  const handleNodeClick = (node) => {
-    // Navigate to a cluster or a search detail. 
-    // Wait, the user might want a panel. The request said "Related items panel when viewing any item". This is in Clusters.
-    // However, when clicking a node here, we can route to Search to view its details or keep it simple.
-    // For now, let's open prompt or just center the graph
-    fgRef.current.centerAt(node.x, node.y, 1000);
-    fgRef.current.zoom(8, 2000);
-  };
-
-  // Color mapper based on semantic tags
-  const getNodeColor = (node) => {
-      const g = node.group.toLowerCase();
-      if(g === "youtube") return "#ff0000";
-      if(g === "google") return "#4285F4";
-      if(g.includes("x (tw")) return "#1DA1F2";
-      if(g.includes("ai")) return "#a855f7";
-      if(g.includes("react")) return "#61dafb";
-      if(g === "miscellaneous") return "#6b7280";
-      return "#3b82f6"; // Default blue
-  };
-
   return (
     <div className="flex flex-col h-full bg-[#111113] relative overflow-hidden">
       <div className="absolute top-8 left-8 z-10 pointer-events-none">
@@ -79,32 +77,99 @@ const Graph = () => {
 
       <div className="flex-1 w-full h-full cursor-crosshair">
         {graphData && graphData.nodes.length > 0 ? (
-            <ForceGraph2D
+            <ForceGraph3D
                 ref={fgRef}
                 width={windowSize[0] - 256} // Approximate minus sidebar
                 height={windowSize[1]}
                 graphData={JSON.parse(JSON.stringify(graphData))} // Deep clone to allow D3 mutations on frozen Redux state
                 nodeAutoColorBy="group"
-                nodeRelSize={6}
                 nodeColor={getNodeColor}
-                linkColor={() => 'rgba(255, 255, 255, 0.1)'}
-                linkWidth={link => link.value * 2} // visually thicker for stronger connections
-                onNodeClick={handleNodeClick}
-                nodeCanvasObjectMode={() => 'after'}
-                nodeCanvasObject={(node, ctx, globalScale) => {
-                    const label = node.name;
-                    const fontSize = 12/globalScale;
-                    ctx.font = `${fontSize}px Sans-Serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.fillText(label, node.x, node.y + 8 + (8 / globalScale));
+                nodeRelSize={6}
+                nodeResolution={24}
+                
+                // --- 3D Aesthetic Styling ---
+                nodeThreeObject={node => {
+                  const group = new THREE.Group();
+                  
+                  // Main Sphere (The Node)
+                  const geometry = new THREE.SphereGeometry(6, 24, 24);
+                  const material = new THREE.MeshPhongMaterial({ 
+                    color: getNodeColor(node),
+                    emissive: getNodeColor(node),
+                    emissiveIntensity: 0.4,
+                    shininess: 100
+                  });
+                  const sphere = new THREE.Mesh(geometry, material);
+                  group.add(sphere);
+
+                  // Outer Glow Sprite
+                  const canvas = document.createElement('canvas');
+                  canvas.width = 64;
+                  canvas.height = 64;
+                  const ctx = canvas.getContext('2d');
+                  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+                  gradient.addColorStop(0, `${getNodeColor(node)}FF`);
+                  gradient.addColorStop(0.5, `${getNodeColor(node)}33`);
+                  gradient.addColorStop(1, 'transparent');
+                  ctx.fillStyle = gradient;
+                  ctx.fillRect(0, 0, 64, 64);
+                  
+                  const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: new THREE.CanvasTexture(canvas),
+                    transparent: true,
+                    blending: THREE.AdditiveBlending
+                  });
+                  const glow = new THREE.Sprite(spriteMaterial);
+                  glow.scale.set(30, 30, 1);
+                  group.add(glow);
+
+                  // Label Sprite
+                  const labelCanvas = document.createElement('canvas');
+                  const context = labelCanvas.getContext('2d');
+                  const labelText = node.name;
+                  context.font = 'Bold 40px Inter, Sans-Serif';
+                  const textWidth = context.measureText(labelText).width;
+                  labelCanvas.width = textWidth + 40;
+                  labelCanvas.height = 80;
+                  
+                  context.font = 'Bold 40px Inter, Sans-Serif';
+                  context.fillStyle = 'white';
+                  context.textAlign = 'center';
+                  context.textBaseline = 'middle';
+                  // Subtle text shadow for depth
+                  context.shadowColor = 'rgba(0,0,0,0.5)';
+                  context.shadowBlur = 10;
+                  context.fillText(labelText, labelCanvas.width / 2, labelCanvas.height / 2);
+                  
+                  const labelTexture = new THREE.CanvasTexture(labelCanvas);
+                  const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture, transparent: true });
+                  const labelSprite = new THREE.Sprite(labelMaterial);
+                  labelSprite.scale.set(labelCanvas.width / 5, labelCanvas.height / 5, 1);
+                  labelSprite.position.set(0, 15, 0); // Position above node
+                  group.add(labelSprite);
+
+                  return group;
                 }}
-                d3VelocityDecay={0.1}
-                d3AlphaDecay={0.02}
-                cooldownTicks={100}
-                backgroundColor="#111113"
+                
+                // --- Link Styling ---
+                linkColor={() => 'rgba(255, 255, 255, 0.15)'}
+                linkWidth={link => link.value * 0.5}
+                linkResolution={8}
+                linkDirectionalParticles={2}
+                linkDirectionalParticleSpeed={0.01}
+                linkDirectionalParticleWidth={2}
+                linkDirectionalParticleColor={() => '#ffffff77'}
+
+                // --- Interactions & Controls ---
+                onNodeClick={handleNodeClick}
+                backgroundColor="#09090b"
+                showNavInfo={false}
+                rootSpinSpeed={0.5}
+
+                // --- Physics & Warmup ---
+                d3VelocityDecay={0.4}
                 warmupTicks={50}
+                cooldownTicks={100}
             />
         ) : (
              <div className="flex items-center justify-center w-full h-full text-zinc-500">

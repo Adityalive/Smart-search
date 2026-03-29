@@ -48,6 +48,11 @@ const worker = new Worker(
       item.sourceType = sourceType;
       item.wordCount = wordCount;
       item.isPaywalled = isPaywalled;
+      
+      if (scraped.image) item.image = scraped.image;
+      if (scraped.siteName) item.siteName = scraped.siteName;
+      if (scraped.favicon) item.favicon = scraped.favicon;
+      if (scraped.videoId) item.videoId = scraped.videoId;
 
       // warn but don't fail — paywalled content has no text to embed
       if (isPaywalled) {
@@ -134,6 +139,10 @@ const worker = new Worker(
           sourceType: detectedType,
           wordCount: wordCount,
           createdAt: item.createdAt, // store timestamp for resurfacing UI
+          image: item.image || "",
+          siteName: item.siteName || "",
+          favicon: item.favicon || "",
+          videoId: item.videoId || ""
         });
         console.log(`[Worker] Upserted to Qdrant ✓`);
       } catch (e) {
@@ -174,6 +183,10 @@ worker.on("failed", (job, err) => {
 
 worker.on("error", (err) => {
   // connection errors, Redis down etc.
+  if (err.message.includes("ECONNRESET") || err.message.includes("ETIMEDOUT")) {
+    // BullMQ/ioredis auto-reconnects; suppress these noisy cloud connection drops
+    return;
+  }
   console.error(`[Worker] Worker error: ${err.message}`);
 });
 

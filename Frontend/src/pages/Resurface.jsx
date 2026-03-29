@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useItems } from '../features/items/hook/useItems';
-import { Sparkles, Calendar, Loader2, Folder, ExternalLink, FileText } from 'lucide-react';
+import { Sparkles, Calendar, Loader2, Folder, ExternalLink, FileText, LinkIcon } from 'lucide-react';
+import { Tweet } from 'react-tweet';
+import FallbackBanner from '../components/FallbackBanner';
 
 const Resurface = () => {
     const [days, setDays] = useState(30);
@@ -77,37 +79,87 @@ const Resurface = () => {
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {cluster.items.map(item => (
+                                {cluster.items.map(item => {
+                                    const isYouTube = item.url?.includes('youtube.com') || item.url?.includes('youtu.be');
+                                    const isTwitter = item.url?.includes('twitter.com') || item.url?.includes('x.com');
+                                    
+                                    let videoId = item.videoId;
+                                    if (!videoId && isYouTube && item.url) {
+                                        if (item.url.includes('youtube.com/watch')) {
+                                            try { videoId = new URL(item.url).searchParams.get('v') || ''; } catch(e){}
+                                        } else if (item.url.includes('youtu.be/')) {
+                                            videoId = item.url.split('youtu.be/')[1]?.split('?')[0] || '';
+                                        }
+                                    } else if (!videoId && isTwitter && item.url) {
+                                        const match = item.url.match(/\/status\/(\d+)/);
+                                        if (match) videoId = match[1];
+                                    }
+
+                                    return (
                                     <div 
                                         key={item._id} 
-                                        className="group relative bg-[#18181b] border border-zinc-800/50 p-6 rounded-[2rem] hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/5 flex flex-col h-full"
+                                        className="group relative bg-[#18181b] border border-zinc-800/50 rounded-[2rem] hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/5 flex flex-col h-full overflow-hidden"
                                     >
-                                        <div className="flex items-center justify-between mb-5">
-                                            <div className="p-2 bg-zinc-900 rounded-xl group-hover:bg-amber-500/10 transition-colors">
-                                                {item.type === 'pdf' ? <FileText size={18} className="text-purple-400" /> : <ExternalLink size={18} className="text-blue-400" />}
-                                            </div>
-                                            <span className="text-[10px] uppercase tracking-[0.1em] font-black text-zinc-600 group-hover:text-amber-500/60 transition-colors">
-                                                {new Date(item.createdAt).toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                        
-                                        <h3 className="text-zinc-100 font-bold text-lg line-clamp-2 mb-3 leading-snug group-hover:text-amber-100 transition-colors">
-                                            {item.title || "Untitled Fragment"}
-                                        </h3>
-                                        
-                                        <p className="text-zinc-500 text-sm line-clamp-3 mb-6 leading-relaxed flex-1">
-                                            {item.description || "A semantic thread from your past exploration."}
-                                        </p>
+                                        {/* Media Banner Section */}
+                                        {isYouTube && videoId ? (
+                                          <div className="w-full aspect-video bg-black relative z-10">
+                                            <iframe 
+                                              src={`https://www.youtube.com/embed/${videoId}`}
+                                              title={item.title}
+                                              className="w-full h-full border-0 pointer-events-auto"
+                                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                              allowFullScreen
+                                            />
+                                          </div>
+                                        ) : isTwitter && videoId ? (
+                                          <div className="w-full bg-[#111113] p-0 flex justify-center max-h-72 overflow-y-auto pointer-events-auto z-10 dark scrollbar-hide">
+                                            <Tweet id={videoId} />
+                                          </div>
+                                        ) : item.image ? (
+                                          <div className="w-full h-40 bg-zinc-900 border-b border-white/[0.05] relative overflow-hidden shrink-0">
+                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.style.display = 'none'; }} />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-[#18181b] via-transparent to-transparent" />
+                                          </div>
+                                        ) : (
+                                          <FallbackBanner item={item} />
+                                        )}
 
-                                        <div className="flex flex-wrap gap-2 mt-auto pt-5 border-t border-zinc-800/30">
-                                            {item.tags?.slice(0, 2).map(tag => (
-                                                <span key={tag} className="text-[10px] px-3 py-1 rounded-full bg-[#09090b] border border-zinc-800 text-zinc-500 font-bold group-hover:border-amber-900 group-hover:text-amber-600/60 transition-all">
-                                                    #{tag.toUpperCase()}
+                                        <div className="p-6 flex flex-col flex-1">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="p-2 bg-zinc-900 rounded-xl group-hover:bg-amber-500/10 transition-colors flex items-center justify-center relative overflow-hidden">
+                                                        {item.favicon ? (
+                                                            <img src={item.favicon} alt="icon" className="w-4 h-4 object-contain rounded-sm" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                                                        ) : null}
+                                                        <ExternalLink size={16} className={`text-blue-400 ${item.favicon ? 'hidden' : 'block'}`} />
+                                                    </div>
+                                                    <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 truncate max-w-[120px]">
+                                                        {item.siteName || (item.type === 'pdf' ? 'PDF Doc' : 'Link')}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] uppercase tracking-[0.1em] font-black text-zinc-600 group-hover:text-amber-500/60 transition-colors">
+                                                    {new Date(item.createdAt).toLocaleDateString()}
                                                 </span>
-                                            ))}
+                                            </div>
+                                            
+                                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="block text-zinc-100 font-bold text-lg line-clamp-2 mb-3 leading-snug hover:text-amber-400 transition-colors z-20">
+                                                {item.title || "Untitled Fragment"}
+                                            </a>
+                                            
+                                            <p className="text-zinc-500 text-sm line-clamp-3 mb-6 leading-relaxed flex-1">
+                                                {item.description || "A semantic thread from your past exploration."}
+                                            </p>
+
+                                            <div className="flex flex-wrap gap-2 mt-auto pt-5 border-t border-zinc-800/30">
+                                                {item.tags?.slice(0, 2).map(tag => (
+                                                    <span key={tag} className="text-[10px] px-3 py-1 rounded-full bg-[#09090b] border border-zinc-800 text-zinc-500 font-bold group-hover:border-amber-900 group-hover:text-amber-600/60 transition-all">
+                                                        #{tag.toUpperCase()}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         </section>
                     ))}

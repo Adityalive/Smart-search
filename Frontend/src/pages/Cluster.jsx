@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useClusters } from '../features/clusters/hook/useClusters';
 import { useGraph } from '../features/graph/hook/useGraph';
-import { Folder, Link as LinkIcon, FileText, X, FolderOpen, ArrowLeft, Network } from 'lucide-react';
+import { Folder, Link as LinkIcon, FileText, X, FolderOpen, ArrowLeft, Network, Play } from 'lucide-react';
+import { Tweet } from 'react-tweet';
+import FallbackBanner from '../components/FallbackBanner';
 
 const Cluster = () => {
   const { clusters, loading, error } = useClusters();
@@ -91,43 +93,90 @@ const Cluster = () => {
 
           {/* Content list Grid */}
           <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {activeFolder.items.map((item) => (
+            {activeFolder.items.map((item) => {
+              const isYouTube = item.url?.includes('youtube.com') || item.url?.includes('youtu.be');
+              const isTwitter = item.url?.includes('twitter.com') || item.url?.includes('x.com');
+              
+              let videoId = item.videoId;
+              if (!videoId && isYouTube && item.url) {
+                  if (item.url.includes('youtube.com/watch')) {
+                      try { videoId = new URL(item.url).searchParams.get('v') || ''; } catch(e){}
+                  } else if (item.url.includes('youtu.be/')) {
+                      videoId = item.url.split('youtu.be/')[1]?.split('?')[0] || '';
+                  }
+              } else if (!videoId && isTwitter && item.url) {
+                  const match = item.url.match(/\/status\/(\d+)/);
+                  if (match) videoId = match[1];
+              }
+
+              return (
               <div 
                 key={item._id} 
-                onClick={() => setSelectedItem({ ...item, folderName: activeFolder.name })}
-                className="bg-[#18181b] p-5 rounded-2xl border border-white/[0.05] hover:border-white/[0.1] transition-all hover:shadow-lg hover:-translate-y-1 group cursor-pointer flex flex-col h-full"
+                onClick={(e) => {
+                  // don't open modal if clicking on iframe or tweet
+                  if (e.target.tagName.toLowerCase() === 'iframe') return;
+                  setSelectedItem({ ...item, folderName: activeFolder.name });
+                }}
+                className="bg-[#18181b] rounded-2xl border border-white/[0.05] hover:border-white/[0.1] transition-all hover:shadow-lg hover:-translate-y-1 group cursor-pointer flex flex-col h-full overflow-hidden"
               >
-                <div className="flex items-start gap-3 mb-3">
-                  <div className={`p-2 rounded-lg shrink-0 ${item.type === 'pdf' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                    {item.type === 'pdf' ? <FileText size={18} /> : <LinkIcon size={18} />}
+                {/* Media Banner Section */}
+                {isYouTube && videoId ? (
+                  <div className="w-full aspect-video bg-black relative z-10">
+                    <iframe 
+                      src={`https://www.youtube.com/embed/${videoId}`}
+                      title={item.title}
+                      className="w-full h-full border-0 pointer-events-auto"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-zinc-200 font-medium truncate group-hover:text-blue-400 transition-colors" title={item.title}>
-                      {item.title || "Untitled Document"}
-                    </h3>
-                    {item.url ? (
-                      <span className="text-xs text-blue-400/80 truncate block mt-0.5">
-                        {item.url}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-purple-400/80 truncate block mt-0.5">Stored PDF</span>
-                    )}
+                ) : isTwitter && videoId ? (
+                  <div className="w-full bg-[#111113] p-0 flex justify-center max-h-72 overflow-y-auto pointer-events-auto z-10 dark">
+                    <Tweet id={videoId} />
                   </div>
-                </div>
-                {item.description && (
-                  <p className="text-xs text-zinc-500 mt-2 line-clamp-3 leading-relaxed group-hover:text-zinc-400 transition-colors">
-                    {item.description}
-                  </p>
+                ) : item.image ? (
+                  <div className="w-full h-40 bg-zinc-900 border-b border-white/[0.05] relative overflow-hidden shrink-0">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#18181b] via-transparent to-transparent" />
+                  </div>
+                ) : (
+                  <FallbackBanner item={item} />
                 )}
-                <div className="mt-auto pt-4 flex gap-2 overflow-hidden">
-                   {item.tags?.slice(0,2).map((tag, idx) => (
-                      <span key={idx} className="text-[10px] px-2 py-1 bg-white/[0.03] text-zinc-400 rounded-md border border-white/[0.02] truncate flex-shrink-0">
-                         {tag}
-                      </span>
-                   ))}
+
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className={`p-2 rounded-lg shrink-0 ${item.type === 'pdf' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'} flex flex-col items-center justify-center relative overflow-hidden`}>
+                      {item.favicon ? (
+                        <img src={item.favicon} alt="icon" className="w-4 h-4 object-contain rounded-sm" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                      ) : null}
+                      <LinkIcon size={16} className={item.favicon ? "hidden" : "block"} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-black tracking-wider uppercase text-zinc-500 truncate">
+                          {item.siteName || (item.type === 'pdf' ? 'PDF Document' : 'Web Link')}
+                        </span>
+                      </div>
+                      <h3 className="text-zinc-200 font-bold leading-tight line-clamp-2 group-hover:text-blue-400 transition-colors" title={item.title}>
+                        {item.title || "Untitled Document"}
+                      </h3>
+                    </div>
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-zinc-500 mt-2 line-clamp-3 leading-relaxed group-hover:text-zinc-400 transition-colors flex-1">
+                      {item.description}
+                    </p>
+                  )}
+                  <div className="mt-4 pt-4 flex gap-2 overflow-hidden border-t border-white/[0.05]">
+                    {item.tags?.slice(0,3).map((tag, idx) => (
+                        <span key={idx} className="text-[10px] px-2 py-1 bg-white/[0.03] text-zinc-400 rounded-md border border-white/[0.02] truncate flex-shrink-0">
+                          {tag}
+                        </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       ) : (
@@ -187,7 +236,7 @@ const Cluster = () => {
           <div className="bg-[#18181b] border border-blue-500/20 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden shadow-blue-900/10 animate-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-start justify-between p-6 border-b border-white/[0.05]">
-              <div className="flex-1 pr-4">
+              <div className="flex-1 min-w-0 pr-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="px-2 py-1 bg-zinc-800 text-zinc-400 text-xs font-medium rounded flex items-center gap-1">
                       <Folder size={12} /> {selectedItem.folderName || 'Cluster'}
@@ -222,14 +271,12 @@ const Cluster = () => {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-zinc-700">
-               {selectedItem.description && (
                 <div className="mb-6 bg-[#111113] p-5 rounded-xl border border-white/[0.02]">
-                  <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-2">Meta Description</h3>
+                  <h3 className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-2">Description</h3>
                   <p className="text-zinc-300 text-sm leading-relaxed">
-                    {selectedItem.description}
+                    {selectedItem.description || "The semantic thread for this artifact has been successfully embedded, but no explicit meta description was found on the source page."}
                   </p>
                 </div>
-              )}
 
               {selectedItem.tags && selectedItem.tags.length > 0 && (
                 <div className="mb-6">

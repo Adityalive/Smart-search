@@ -1,0 +1,68 @@
+# Rich Media Embeds & Link Previews
+
+This plan addresses adding rich previews (Open Graph images, site names, favicons, and YouTube embeds) to all saved links to match the premium design shown in your reference image.
+
+## User Review Required
+
+> [!IMPORTANT]
+> To quickly scrape metadata (like Open Graph tags) without fully loading heavy Puppeteer instances every time, I will add `cheerio` to parse the initial raw HTML of URLs. Could you confirm if adding `cheerio` as a dependency is okay?
+> Also, for YouTube videos, would you prefer clicking them to play an inline embedded video or simply open the link in a new tab?
+
+## Proposed Changes
+
+---
+
+### Backend Schema & Controllers
+
+#### [MODIFY] `Backend/src/models/item.model.js`
+- Add new fields to the schema:
+  - `image` (String): URL of the Open Graph image/thumbnail.
+  - `siteName` (String): Document's site name or domain base.
+  - `favicon` (String): Shortcut icon URL.
+  - `videoId` (String): Specific ID for YouTube or video platforms if applicable.
+
+#### [MODIFY] `Backend/src/controllers/item.controller.js`
+- Update the `getResurfacedItems` and `getItems` functions (or ensure they return the newly added fields to the frontend). For Qdrant mapped items, we need to pass these new fields along with title and description.
+
+#### [MODIFY] `Backend/src/utils/qdrant.js`
+- Add `image`, `siteName` and `favicon` to the payload when upserting to Qdrant, so that search/resurface functionalities can retrieve them directly from vector metadata without a database roundtrip.
+
+---
+
+### Backend Workers & Scraper
+
+#### [MODIFY] `Backend/src/services/scraper.js`
+- Add a fast `cheerio` payload fetch *before* running Jina/Puppeteer. This step simply parses `<meta property="og:image">`, `<meta property="og:site_name">`, and `<link rel="icon">` to get the metadata quickly.
+- Detect YouTube URLs explicitly and extract the video ID (e.g., `v=...`) to store in `videoId`.
+
+#### [MODIFY] `Backend/src/workers/itemworker.js`
+- Map the parsed metadata (`image`, `siteName`, `favicon`, `videoId`) into the Mongoose document before calling `item.save()`.
+
+---
+
+### Frontend Components
+
+#### [MODIFY] `Frontend/src/pages/Cluster.jsx` (and/or `Graph.jsx`)
+- Upgrade the visual card representation for items inside a cluster ("folder"). 
+- Render rich cards:
+  - Background image or top banner mapping to `item.image`.
+  - Display the `item.siteName` or `item.favicon` next to the document type.
+  - For YouTube items, display a video player or high-quality thumbnail.
+
+#### [MODIFY] `Frontend/src/pages/Search.jsx` & `Resurface.jsx`
+- Replace the current plain container items with visually stunning rich cards layout as per the aesthetic requirements.
+- Show the Open Graph image as a banner on top of the card or alongside the text.
+
+## Open Questions
+
+> [!WARNING]  
+> Are there specific links (e.g. Twitter/X) that strict-block scraping without authentication where you are okay with a fallback design, or should we use special embed APIs for those?
+
+## Verification Plan
+
+### Automated Tests
+- Save a YouTube link and verify `favicon`, `siteName` ('YouTube'), and `image` (thumbnail) are captured.
+- Save a LinkedIn or standard article link and ensure Open Graph metadata is correctly mapped.
+
+### Manual Verification
+- View Resurface, Search, and Cluster pages to ensure they dynamically render the rich cards properly without breaking the responsive layout.

@@ -1,0 +1,59 @@
+# Implementation Plan - Sidebar History Feature
+
+Add a search history feature to the sidebar that stores and displays recent search queries in a "latest to older" order (LIFO stack behavior).
+
+## User Review Required
+
+> [!IMPORTANT]
+> - History will be stored in `localStorage` to persist across sessions.
+> - Clicking a history item will navigate the user to the Semantic Search page and automatically re-run that search.
+> - We will limit the history to the last 10-15 items to keep the sidebar clean.
+
+## Proposed Changes
+
+### [NEW] History Feature Component
+#### [NEW] [historySlice.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/history/historySlice.js)
+- Define `history` state as an array.
+- Action `addToHistory(query)`: Adds a new query to the beginning of the array. If the query already exists, move it to the front.
+- Action `clearHistory()`: Resets the history array.
+- Logic to load from and save to `localStorage`.
+
+#### [NEW] [useHistory.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/history/hook/useHistory.js)
+- Custom hook to provide `historyItems`, `addHistoryItem`, and `clearAllHistory`.
+
+---
+
+### [MODIFY] Redux Store
+#### [MODIFY] [store.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/app/store.js)
+- Register the `historyReducer`.
+
+---
+
+### [MODIFY] Sidebar UI
+#### [MODIFY] [Layout.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/components/Layout.jsx)
+- Use `useHistory` hook to fetch history items.
+- Add a "Recent History" section below the navigation links.
+- Render history items with a "clock" or "history" icon.
+- Style them to match the premium dark theme.
+
+---
+
+### [MODIFY] Search Integration
+#### [MODIFY] [Search.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/pages/Search.jsx)
+- Call `addHistoryItem(query)` when a search is successfully performed.
+- (Optional) Check for query params to auto-trigger search when clicking from history.
+
+## Open Questions
+
+- Just search queries, or should we also store "visited clusters/documents"? (Plan currently focuses on search queries).
+- Should we show the timestamp (e.g., "2 mins ago")?
+
+## Verification Plan
+
+### Automated/Manual Verification
+1. Open the app and perform several searches.
+2. Verify that the searches appear in the sidebar immediately.
+3. Verify that the newest search is at the top.
+4. Refresh the page and ensure history persists.
+5. Click a history item and verify it triggers a new search.
+6. Check the "Clear History" functionality (if added).

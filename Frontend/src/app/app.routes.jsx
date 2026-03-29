@@ -8,6 +8,7 @@ import Layout from "../components/Layout.jsx";
 import Graph from "../pages/Graph.jsx";
 import Search from "../pages/Search.jsx";
 import Resurface from "../pages/Resurface.jsx";
+import History from "../pages/History.jsx";
 
 const appRouter = createBrowserRouter([
     {
@@ -33,6 +34,10 @@ const appRouter = createBrowserRouter([
             {
                 path: "resurface",
                 element: <Resurface />, // Memory Resurfacing cumulative view
+            },
+            {
+                path: "history",
+                element: <History />, // Full search history page
             }
         ]
     },
