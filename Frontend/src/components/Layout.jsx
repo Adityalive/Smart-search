@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../features/auth/hook/useAuth';
 import { useItems } from '../features/items/hook/useItems';
-import { Home, FolderTree, LogOut, Network, Search, Sparkles, Clock } from 'lucide-react';
+import { Home, FolderTree, LogOut, Network, Search, Sparkles, Clock, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Layout = () => {
@@ -31,6 +31,16 @@ const Layout = () => {
         </div>
 
         <nav className="flex-1 px-4 space-y-2">
+          <a
+            href="/install.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 mb-4 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] group"
+          >
+            <HelpCircle size={20} className="group-hover:scale-110 transition-transform" />
+            <span className="font-bold tracking-tight">How to use</span>
+          </a>
+
           <NavLink
             to="/"
             end
