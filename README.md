@@ -221,6 +221,7 @@ Since this is a free, open-source project, the extension is distributed via **Gi
 | 🖼️ **Save as Image** | Tags the item as an image for smart clustering |
 | 🎬 **Save as Video** | Tags the item as a video for smart clustering |
 | 🖱️ **Right-click Menu** | Right-click any image → "Save Image to Smart-search" |
+| Here is the folder:https://drive.google.com/drive/folders/1KksV-FbZlfYjJbwN4_mLTIXc-EfeLEol?usp=sharing |
 
 ---
 
