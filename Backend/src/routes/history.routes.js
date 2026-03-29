@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createHistory, getHistory, clearHistory } from "../controllers/history.controller.js";
-import verifyAuth from "../middleware/verifyauth.js";
+import verifyAuth from "../middleware/verifyAuth.js";
 
 const historyRouter = Router();
 
