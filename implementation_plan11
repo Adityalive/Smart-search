@@ -1,0 +1,73 @@
+# Implementation Plan - Sidebar History Feature
+
+Add a search history feature to the sidebar that stores and displays recent search queries in a "latest to older" order (LIFO stack behavior).
+
+## User Review Required
+
+> [!IMPORTANT]
+> - History will be stored in **MongoDB** for persistence and cross-device availability.
+> - A new `History` model will be created on the backend.
+> - History will be retrieved in "latest to oldest" order based on the `createdAt` timestamp.
+
+## Proposed Changes
+
+### [NEW] Backend Components
+#### [NEW] [history.model.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/models/history.model.js)
+- Schema with `userId` (ref User), `query`, `type` (e.g., 'search'), and `timestamp`.
+- Indexes for performance on `userId` and `createdAt`.
+
+#### [NEW] [history.controller.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/controllers/history.controller.js)
+- `createHistory`: Saves a new history entry.
+- `getHistory`: Fetches the last 20 entries for the logged-in user, sorted by `createdAt: -1`.
+- `deleteHistory`: Clears all history for a user.
+
+#### [NEW] [history.routes.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Backend/src/routes/history.routes.js)
+- Endpoints: `POST /api/history` and `GET /api/history`.
+- Protected by authentication middleware.
+
+---
+
+### [NEW] Frontend History Feature
+#### [NEW] [historySlice.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/history/historySlice.js)
+- Async thunks for `fetchHistory`, `addHistoryItem`, and `clearHistory`.
+- Reducers to handle loading and state updates.
+
+#### [NEW] [useHistory.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/features/history/hook/useHistory.js)
+- Custom hook to provide `historyItems`, `isLoading`, and methods to interact with history.
+
+---
+
+### [MODIFY] Redux Store
+#### [MODIFY] [store.js](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/app/store.js)
+- Register the `historyReducer`.
+
+---
+
+### [MODIFY] Sidebar UI
+#### [MODIFY] [Layout.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/components/Layout.jsx)
+- Use `useHistory` hook to fetch history items.
+- Add a "Recent History" section below the navigation links.
+- Render history items with a "clock" or "history" icon.
+- Style them to match the premium dark theme.
+
+---
+
+### [MODIFY] Search Integration
+#### [MODIFY] [Search.jsx](file:///c:/Users/KIIT0001/Desktop/Smart-search/Frontend/src/pages/Search.jsx)
+- Call `addHistoryItem(query)` when a search is successfully performed.
+- (Optional) Check for query params to auto-trigger search when clicking from history.
+
+## Open Questions
+
+- Just search queries, or should we also store "visited clusters/documents"? (Plan currently focuses on search queries).
+- Should we show the timestamp (e.g., "2 mins ago")?
+
+## Verification Plan
+
+### Automated/Manual Verification
+1. Open the app and perform several searches.
+2. Verify that the searches appear in the sidebar immediately.
+3. Verify that the newest search is at the top.
+4. Refresh the page and ensure history persists.
+5. Click a history item and verify it triggers a new search.
+6. Check the "Clear History" functionality (if added).
