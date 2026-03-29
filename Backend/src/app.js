@@ -45,20 +45,15 @@ app.use(express.static(path.join(__dirname, "../public")));
 app.use("/api/auth", authRouter);
 app.use("/api/items", itemRouter);
 
-// ─── Health check ──────────────────────────────────────────────────────────
-app.get("/", (req, res) => {
+// ─── Health check (API only) ───────────────────────────────────────────────
+app.get("/api", (req, res) => {
     res.json({ message: "Smart-search API is running 🚀" });
 });
 
 // ─── Client-side Routing ──────────────────────────────────────────────────
-// For any other GET request that doesn't match an API route, serve the React app
+// Catch all GET requests and serve the React app (must be BEFORE error handler)
 app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "../public/dist/index.html"));
-});
-
-// ─── 404 Handler (only for undefined POST/PUT etc) ─────────────────────────
-app.use((req, res) => {
-    res.status(404).json({ message: `Resource ${req.originalUrl} not found.` });
 });
 
 // ─── Global Error Handler ──────────────────────────────────────────────────
