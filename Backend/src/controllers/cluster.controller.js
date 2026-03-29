@@ -16,7 +16,7 @@ function cosineSimilarity(vecA, vecB) {
 
 // Helper: find most frequent string in array
 function getMostFrequent(array) {
-    if (array.length === 0) return "Miscellaneous";
+    if (array.length === 0) return "Article";
     const counts = {};
     let maxCount = 0;
     let mostFrequent = array[0];
@@ -127,7 +127,7 @@ export const getClusters = async (req, res) => {
                 }
                 
                 const topTags = Object.keys(tagRanks).sort((a,b) => tagRanks[b] - tagRanks[a]);
-                const cloudName = topTags[0] || `Miscellaneous ${idx + 1}`;
+                const cloudName = topTags[0] || `Article ${idx + 1}`;
                 
                 topicClusters.push({
                     name: cloudName,

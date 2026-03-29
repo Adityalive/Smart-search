@@ -6,7 +6,6 @@ import cookieParser from "cookie-parser";
 
 import authRouter from "./routes/auth.routes.js";
 import itemRouter from "./routes/items.routes.js";
-import historyRouter from "./routes/history.routes.js";
 
 const app = express();
 
@@ -34,7 +33,6 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
 app.use("/api/items", itemRouter);
-app.use("/api/history", historyRouter);
 
 // ─── Health check ──────────────────────────────────────────────────────────
 app.get("/", (req, res) => {

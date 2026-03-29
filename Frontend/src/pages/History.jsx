@@ -1,7 +1,12 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useHistory } from '../features/history/hook/useHistory';
-import { Search, Clock, Loader2 } from 'lucide-react';
+import { useItems } from '../features/items/hook/useItems';
+import { FileText, Clock, Loader2, Globe, Video, Image as ImageIcon } from 'lucide-react';
+
+const getTimestampFromId = (id) => {
+    if (!id || typeof id !== 'string') return new Date();
+    return new Date(parseInt(id.substring(0, 8), 16) * 1000);
+};
 
 const groupByDate = (items) => {
     if (!items || items.length === 0) return {};
@@ -13,14 +18,14 @@ const groupByDate = (items) => {
     yesterday.setDate(yesterday.getDate() - 1);
 
     items.forEach(item => {
-        const itemDate = new Date(item.createdAt);
+        const itemDate = item.createdAt ? new Date(item.createdAt) : getTimestampFromId(item._id);
         const dayOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
 
         let label;
         if (dayOnly.getTime() === today.getTime()) {
-            label = 'todday';
+            label = 'today';
         } else if (dayOnly.getTime() === yesterday.getTime()) {
-            label = 'yestrday';
+            label = 'yesterday';
         } else {
             label = `${itemDate.getDate()}/${itemDate.getMonth() + 1}/${itemDate.getFullYear().toString().slice(-2)}`;
         }
@@ -33,18 +38,28 @@ const groupByDate = (items) => {
 };
 
 const History = () => {
-    const { historyItems, loading } = useHistory();
+    const { items: savedItems, loading } = useItems();
     const navigate = useNavigate();
 
-    const groupedHistory = useMemo(() => groupByDate(historyItems), [historyItems]);
+    const groupedHistory = useMemo(() => groupByDate(savedItems), [savedItems]);
 
-    const handleQueryClick = (query) => {
-        navigate(`/search?q=${encodeURIComponent(query)}`);
+    const handleItemClick = (id) => {
+        // For now, navigating to clusters as the item detail view
+        navigate(`/clusters`);
     };
 
-    const formatTime = (dateStr) => {
-        const d = new Date(dateStr);
+    const formatTime = (item) => {
+        const d = item.createdAt ? new Date(item.createdAt) : getTimestampFromId(item._id);
         return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    };
+
+    const getIcon = (type) => {
+        switch (type?.toLowerCase()) {
+            case 'video': return <Video size={12} />;
+            case 'image': return <ImageIcon size={12} />;
+            case 'pdf': return <FileText size={12} />;
+            default: return <Globe size={12} />;
+        }
     };
 
     return (
@@ -61,7 +76,7 @@ const History = () => {
                     History
                 </h1>
                 <p className="mt-5 text-zinc-500 text-sm uppercase tracking-widest">
-                    Your search activity — newest first
+                    Your saved items — newest first
                 </p>
             </div>
 
@@ -99,22 +114,29 @@ const History = () => {
                         {items.map((item) => (
                             <button
                                 key={item._id}
-                                onClick={() => handleQueryClick(item.query)}
+                                onClick={() => handleItemClick(item._id)}
                                 className="group flex items-center gap-4 w-full text-left px-5 py-4 rounded-xl border border-transparent hover:border-emerald-500/20 hover:bg-emerald-500/[0.03] transition-all duration-200"
                             >
                                 {/* Icon */}
                                 <div className="w-8 h-8 rounded-lg border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:border-emerald-500/40 group-hover:bg-emerald-500/10 transition-all">
-                                    <Search size={12} className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors" />
+                                    <div className="text-emerald-500/50 group-hover:text-emerald-400 transition-colors">
+                                        {getIcon(item.type)}
+                                    </div>
                                 </div>
 
-                                {/* Query Text */}
-                                <span className="flex-1 text-sm text-zinc-400 group-hover:text-emerald-400 transition-colors truncate font-medium">
-                                    {item.query}
-                                </span>
+                                {/* Title Text */}
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-sm text-zinc-400 group-hover:text-emerald-400 transition-colors truncate font-medium block">
+                                        {item.title || "Untitled Item"}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-600 uppercase tracking-widest">
+                                        {item.type || 'link'}
+                                    </span>
+                                </div>
 
                                 {/* Time */}
                                 <span className="text-[10px] text-zinc-600 group-hover:text-emerald-500/50 transition-colors font-mono shrink-0">
-                                    {formatTime(item.createdAt)}
+                                    {formatTime(item)}
                                 </span>
                             </button>
                         ))}
