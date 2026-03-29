@@ -15,7 +15,20 @@ import itemRouter from "./routes/items.routes.js";
 const app = express();
 
 // ─── Security & Utility Middleware ─────────────────────────────────────────
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+                styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+                fontSrc: ["'self'", "https://fonts.gstatic.com"],
+                imgSrc: ["'self'", "data:", "blob:", "https:"],
+                connectSrc: ["'self'", "https:", "wss:"],
+            },
+        },
+    })
+);
 app.use(
     cors({
         origin: (origin, callback) => {
