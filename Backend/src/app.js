@@ -51,8 +51,8 @@ app.get("/api", (req, res) => {
 });
 
 // ─── Client-side Routing ──────────────────────────────────────────────────
-// Catch all GET requests and serve the React app (must be BEFORE error handler)
-app.get("*", (req, res) => {
+// Catch all GET requests and serve the React app (Express 5 compatible regex)
+app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(__dirname, "../public/dist/index.html"));
 });
 
