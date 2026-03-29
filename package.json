@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "install-all": "npm install --prefix Backend && npm install --prefix Frontend",
-    "build": "npm install --prefix Backend && npm install --prefix Frontend && cd Frontend && npm run build && rm -rf ../Backend/public/dist && mv dist ../Backend/public/",
+    "build": "npm install --prefix Backend && npm install --prefix Frontend && npm run build --prefix Frontend",
     "start": "cd Backend && npm start"
   }
 }
