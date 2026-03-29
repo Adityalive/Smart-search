@@ -111,6 +111,20 @@ const Layout = () => {
             <Sparkles size={20} />
             <span className="font-medium">Memory Resurface</span>
           </NavLink>
+
+          <NavLink
+            to="/history"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                isActive
+                  ? 'bg-emerald-600/10 text-emerald-400'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.03]'
+              }`
+            }
+          >
+            <Clock size={20} />
+            <span className="font-medium">History</span>
+          </NavLink>
         </nav>
 
         {/* History Section */}
