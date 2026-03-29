@@ -1,0 +1,10 @@
+{
+  "name": "smart-search-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install --prefix Backend && npm install --prefix Frontend",
+    "build": "cd Frontend && npm install && npm run build && rm -rf ../Backend/public/dist && mv dist ../Backend/public/",
+    "start": "cd Backend && npm start"
+  }
+}
