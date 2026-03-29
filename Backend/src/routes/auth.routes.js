@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { register, login, logout, getme } from "../controllers/auth.controller.js";
 import { registerValidator, loginValidator } from "../validators/auth.validator.js";
-import verifyAuth from "../middleware/verifyauth.js";
+import verifyAuth from "../middleware/verifyAuth.js";
 
 const authRouter = Router();
 

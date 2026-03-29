@@ -3,7 +3,7 @@ import { saveItem, getItems, getResurfacedItems } from "../controllers/item.cont
 import { getClusters } from "../controllers/cluster.controller.js";
 import { getGraph, getRelatedItems, semanticSearch } from "../controllers/graph.controller.js";
 import { saveItemValidator } from "../validators/item.validator.js";
-import verifyAuth from "../middleware/verifyauth.js";
+import verifyAuth from "../middleware/verifyAuth.js";
 import { upload } from "../middleware/upload.js";
 
 const itemRouter = Router();
