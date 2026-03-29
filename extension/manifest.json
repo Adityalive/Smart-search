@@ -10,6 +10,7 @@
     "activeTab"
   ],
   "host_permissions": [
+    "https://smart-search-4kcq.onrender.com/*",
     "https://*/*",
     "http://localhost:3000/*"
   ],

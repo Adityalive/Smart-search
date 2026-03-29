@@ -1,5 +1,5 @@
 // popup.js - The brain of the extension popup
-const API_URL = "http://localhost:3000/api/items"; // Update this to your Render URL after deployment
+const API_URL = "https://smart-search-4kcq.onrender.com/api/items";
 
 document.addEventListener('DOMContentLoaded', async () => {
   const saveUrlBtn = document.getElementById('save-url');

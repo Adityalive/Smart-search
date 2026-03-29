@@ -1,5 +1,5 @@
 // background.js - service worker for context menu
-const API_URL = "http://localhost:3000/api/items"; // Update this to your Render URL after deployment
+const API_URL = "https://smart-search-4kcq.onrender.com/api/items";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
