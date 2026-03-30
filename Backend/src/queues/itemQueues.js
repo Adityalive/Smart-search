@@ -7,6 +7,8 @@ const connection = {
   port: process.env.REDIS_PORT || 6379,
   password: redisPassword ? redisPassword : undefined,
   family: 4, // Force IPv4 to avoid ENOTFOUND on some cloud instances
+  maxRetriesPerRequest: null,
+  connectTimeout: 30000,
 };
 
 const itemQueue = new Queue("item-processing", { connection });

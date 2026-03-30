@@ -11,6 +11,8 @@ const connection = {
   port: Number(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
   family: 4, // Force IPv4 for stable Redis Cloud connections
+  maxRetriesPerRequest: null,
+  connectTimeout: 30000,
 };
 
 const worker = new Worker(

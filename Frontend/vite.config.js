@@ -9,4 +9,12 @@ export default defineConfig({
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
+  },
 })
