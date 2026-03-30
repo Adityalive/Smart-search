@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 
 import authRouter from "./routes/auth.routes.js";
 import itemRouter from "./routes/items.routes.js";
+import historyRouter from "./routes/history.routes.js";
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use(express.static(path.join(__dirname, "public")));
 // ─── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
 app.use("/api/items", itemRouter);
+app.use("/api/history", historyRouter);
 
 // ─── Health check (API only) ───────────────────────────────────────────────
 app.get("/api", (req, res) => {
