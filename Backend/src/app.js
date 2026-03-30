@@ -63,10 +63,19 @@ app.get("/api", (req, res) => {
     res.json({ message: "Smart-search API is running 🚀" });
 });
 
-// ─── Client-side Routing ──────────────────────────────────────────────────
-// Catch all GET requests and serve the React app (Express 5 compatible regex)
-app.get(/(.*)/, (req, res) => {
-    res.sendFile(path.join(__dirname, "public/dist/index.html"));
+// ─── API 404 handler — must be BEFORE the SPA catch-all ───────────────────
+app.use("/api", (req, res) => {
+    res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
+// ─── Client-side Routing (SPA) — only for non-API routes ─────────────────
+app.get(/\/(?!api).*/, (req, res) => {
+    const indexPath = path.join(__dirname, "public/dist/index.html");
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            res.status(404).json({ message: "Frontend not built. Run: npm run build" });
+        }
+    });
 });
 
 // ─── Global Error Handler ──────────────────────────────────────────────────
