@@ -71,13 +71,22 @@ export const saveItem = async (req, res) => {
         const item = await Item.create(itemData);
 
         // Add to background processing queue (for scraping URLs, or doing AI Tagging/Embedding for both)
-        await itemQueue.add("process-item", {
-            itemId: item._id,
-            url: item.url,
-            userId: req.user.id,
-        });
-
-        return res.status(201).json({ message: "Item saved successfully. Processing in background.", item });
+        try {
+            await Promise.race([
+                itemQueue.add("process-item", {
+                    itemId: item._id,
+                    url: item.url,
+                    userId: req.user.id,
+                }),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Redis queue timeout")), 3000)
+                )
+            ]);
+            return res.status(201).json({ message: "Item saved successfully. Processing in background.", item });
+        } catch (queueError) {
+            console.error("Queue add error (Redis may be down):", queueError.message);
+            return res.status(201).json({ message: "Item saved successfully, but background processing is delayed.", item });
+        }
     } catch (error) {
         console.error("Save item error:", error);
         return res.status(500).json({ message: "Server error. Please try again." });
