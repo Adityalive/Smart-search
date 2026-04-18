@@ -110,78 +110,104 @@ export const getResurfacedItems = async (req, res) => {
         const days = parseInt(req.query.days) || 30;
         const cutoff = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
 
-        // 1. Get candidate items from MongoDB
+        // 1. Get candidate items from MongoDB (primary source)
         const items = await Item.find({
             userId: req.user.id,
             createdAt: { $gte: cutoff }
-        }).sort({ createdAt: -1 });
+        }).sort({ createdAt: -1 }).lean();
 
         if (items.length === 0) {
             return res.status(200).json({ count: 0, clusters: [] });
         }
 
-        // 2. Fetch vectors for these items from Qdrant
-        const allPoints = await getAllUserPoints(req.user.id.toString());
-        
-        // Map MongoDB items for easy lookup
-        const mongoMap = new Map();
-        items.forEach(i => mongoMap.set(i._id.toString(), i));
+        // 2. Build a Qdrant vector map (optional enrichment for k-means)
+        const vectorMap = new Map();
+        try {
+            const allPoints = await getAllUserPoints(req.user.id.toString());
+            for (const p of allPoints) {
+                if (p.payload?.mongodbId && p.vector?.length > 0) {
+                    vectorMap.set(p.payload.mongodbId, p.vector);
+                }
+            }
+        } catch (e) {
+            console.error("[Resurface] Qdrant fetch failed, falling back to ungrouped:", e.message);
+        }
 
-        const itemsWithVectors = allPoints
-            .filter(p => p.payload && mongoMap.has(p.payload.mongodbId))
-            .map(p => {
-                const mongoItem = mongoMap.get(p.payload.mongodbId);
-                // Ensure we have a valid date string for the frontend
-                const dateVal = mongoItem.createdAt || mongoItem.processedAt || new Date();
-                
-                return {
-                    _id: p.payload.mongodbId,
-                    title: p.payload.title || mongoItem.title,
-                    url: p.payload.url || mongoItem.url,
-                    tags: p.payload.tags || mongoItem.tags || [],
-                    description: p.payload.description || mongoItem.description,
-                    createdAt: dateVal.toISOString ? dateVal.toISOString() : new Date(dateVal).toISOString(),
-                    vector: p.vector,
-                    image: p.payload.image || mongoItem.image,
-                    siteName: p.payload.siteName || mongoItem.siteName,
-                    favicon: p.payload.favicon || mongoItem.favicon,
-                    videoId: p.payload.videoId || mongoItem.videoId,
-                    type: mongoItem.type
-                };
-            });
+        // 3. Split: items with vectors (can be k-means clustered) vs without
+        const dateStr = (item) => {
+            const d = item.createdAt || new Date();
+            return d.toISOString ? d.toISOString() : new Date(d).toISOString();
+        };
 
-        // 3. Cluster them semantically
-        // Determine K: 1 cluster per ~5 items, max 6
-        const k = Math.min(6, Math.max(1, Math.ceil(itemsWithVectors.length / 5)));
-        const result = kMeansClustering(itemsWithVectors, k);
-
-        // 4. Label clusters
-        const clusteredEchoes = result.map((cluster, idx) => {
-            const tagRanks = {};
-            cluster.points.forEach(p => {
-                p.tags.forEach(t => {
-                    tagRanks[t] = (tagRanks[t] || 0) + 1;
-                });
-            });
-            const topTag = Object.keys(tagRanks).sort((a,b) => tagRanks[b] - tagRanks[a])[0];
-            
-            return {
-                id: `resurface_cluster_${idx}`,
-                name: topTag || `Memory Group ${idx + 1}`,
-                items: cluster.points
-            };
+        const mapItem = (item) => ({
+            _id: item._id.toString(),
+            title: item.title || "Untitled",
+            url: item.url,
+            tags: item.tags || [],
+            description: item.description || "",
+            createdAt: dateStr(item),
+            image: item.image,
+            siteName: item.siteName,
+            favicon: item.favicon,
+            videoId: item.videoId,
+            type: item.type,
         });
 
-        return res.status(200).json({ 
-            count: items.length, 
-            days: days,
-            clusters: clusteredEchoes 
+        const itemsWithVectors = [];
+        const itemsWithout = [];
+
+        for (const item of items) {
+            const idStr = item._id.toString();
+            const vec = vectorMap.get(idStr);
+            if (vec) {
+                itemsWithVectors.push({ ...mapItem(item), vector: vec });
+            } else {
+                itemsWithout.push(mapItem(item));
+            }
+        }
+
+        // 4. K-means on items that have vectors
+        const clusteredEchoes = [];
+
+        if (itemsWithVectors.length > 0) {
+            const k = Math.min(6, Math.max(1, Math.ceil(itemsWithVectors.length / 5)));
+            const result = kMeansClustering(itemsWithVectors, k);
+
+            result.forEach((cluster, idx) => {
+                const tagRanks = {};
+                cluster.points.forEach(p => {
+                    (p.tags || []).forEach(t => { tagRanks[t] = (tagRanks[t] || 0) + 1; });
+                });
+                const topTag = Object.keys(tagRanks).sort((a, b) => tagRanks[b] - tagRanks[a])[0];
+
+                clusteredEchoes.push({
+                    id: `resurface_cluster_${idx}`,
+                    name: topTag || `Memory Group ${idx + 1}`,
+                    items: cluster.points.map(({ vector, ...rest }) => rest),
+                });
+            });
+        }
+
+        // 5. Items without vectors go into a plain "Recently Saved" group
+        if (itemsWithout.length > 0) {
+            clusteredEchoes.push({
+                id: "resurface_cluster_unsorted",
+                name: "Recently Saved",
+                items: itemsWithout,
+            });
+        }
+
+        return res.status(200).json({
+            count: items.length,
+            days,
+            clusters: clusteredEchoes,
         });
     } catch (error) {
         console.error("Resurface clustering error:", error);
         return res.status(500).json({ message: "Failed to cluster memories." });
     }
 };
+
 
 // POST /api/items/reprocess — re-queue all items that failed to get an embedding
 export const reprocessItems = async (req, res) => {

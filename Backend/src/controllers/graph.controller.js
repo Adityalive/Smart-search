@@ -43,7 +43,7 @@ export const getGraph = async (req, res) => {
 
         // 1. Create nodes
         points.forEach(point => {
-            if (point.payload) {
+            if (point.payload && point.vector && point.vector.length > 0) {
                 const item = mapPayloadToItem(point.payload, point.id);
                 // Assign a primary group/color identifier (like the first semantic tag)
                 const group = (point.payload.tags && point.payload.tags.length > 0) 
