@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { saveItem, getItems, getResurfacedItems } from "../controllers/item.controller.js";
+import { saveItem, getItems, getResurfacedItems, reprocessItems } from "../controllers/item.controller.js";
 import { getClusters } from "../controllers/cluster.controller.js";
 import { getGraph, getRelatedItems, semanticSearch } from "../controllers/graph.controller.js";
 import { saveItemValidator } from "../validators/item.validator.js";
@@ -20,6 +20,8 @@ itemRouter.get("/", getItems);
 itemRouter.get("/clusters", getClusters);
 // GET /api/items/resurfaced — fetch items from the last 30/60/90 days
 itemRouter.get("/resurfaced", getResurfacedItems);
+// POST /api/items/reprocess — re-queue all unembedded items so they show in clusters
+itemRouter.post("/reprocess", reprocessItems);
 
 // GET /api/items/graph — fetch global knowledge graph nodes and links
 itemRouter.get("/graph", getGraph);

@@ -154,6 +154,8 @@ export const getClusters = async (req, res) => {
 
         for (const point of points) {
             if (!point.payload) continue;
+            // Skip points with no valid vector (embedding failed when item was processed)
+            if (!point.vector || point.vector.length === 0) continue;
 
             const data = point.payload;
             const url = data.url || "";

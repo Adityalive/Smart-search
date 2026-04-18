@@ -130,8 +130,8 @@ const worker = new Worker(
       console.error(`[Worker] Embedding failed: ${e.message}`);
     }
 
-    // ─── 6. Upsert to Qdrant (only if embedding succeeded) ───────────────────
-    if (embedding) {
+    // ─── 6. Upsert to Qdrant (only if embedding succeeded and has actual values) ──────────────────
+    if (embedding && embedding.length > 0) {
       try {
         await upsertItem(itemId, embedding, {
           userId: userId,
@@ -157,7 +157,7 @@ const worker = new Worker(
     item.status = "ready";
     item.tags = Array.from(new Set([...(item.tags || []), ...tags]));
     item.sourceType = detectedType;
-    item.hasEmbedding = !!embedding;
+    item.hasEmbedding = !!(embedding && embedding.length > 0);
     item.processedAt = new Date();
     item.failReason = undefined; // clear any previous failure reason
 

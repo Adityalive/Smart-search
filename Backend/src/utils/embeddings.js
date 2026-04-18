@@ -7,10 +7,13 @@ const model = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 async function getEmbedding(text) {
   try {
     const result = await model.embedContent(text.slice(0, 8000));
-    return result.embedding.values; // array of 768 numbers
+    const values = result.embedding.values;
+    // Guard: must be a non-empty array (gemini-embedding-001 = 3072 dims)
+    if (!values || values.length === 0) return null;
+    return values;
   } catch (e) {
     console.error("Gemini embedding failed:", e.message);
-    return [];
+    return null; // return null, NOT [] — empty array is truthy and would fool the caller
   }
 }
 

@@ -183,3 +183,40 @@ export const getResurfacedItems = async (req, res) => {
     }
 };
 
+// POST /api/items/reprocess — re-queue all items that failed to get an embedding
+export const reprocessItems = async (req, res) => {
+    try {
+        const unembedded = await Item.find({
+            userId: req.user.id,
+            hasEmbedding: { $ne: true },
+            status: { $ne: "failed" },
+        });
+
+        if (unembedded.length === 0) {
+            return res.status(200).json({ message: "All items already have embeddings.", requeued: 0 });
+        }
+
+        let requeued = 0;
+        for (const item of unembedded) {
+            try {
+                await itemQueue.add("process-item", {
+                    itemId: item._id,
+                    url: item.url,
+                    userId: req.user.id,
+                });
+                requeued++;
+            } catch (e) {
+                console.error(`[Reprocess] Failed to queue ${item._id}: ${e.message}`);
+            }
+        }
+
+        return res.status(200).json({
+            message: `Re-queued ${requeued} items for embedding.`,
+            requeued,
+            total: unembedded.length,
+        });
+    } catch (error) {
+        console.error("Reprocess error:", error);
+        return res.status(500).json({ message: "Server error during reprocess." });
+    }
+};
