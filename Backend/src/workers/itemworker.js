@@ -63,7 +63,7 @@ const worker = new Worker(
     }
 
     // ─── 3. Fail gracefully if no text to process ────────────────────────────
-    if (!isMedia && (!text || text.trim().length < 50)) {
+    if (!isMedia && (!text || text.trim().length < 15)) {
       console.warn(`[Worker] Not enough text to process for item: ${itemId}`);
       item.status = "failed";
       item.failReason = !text
