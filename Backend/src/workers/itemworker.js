@@ -140,7 +140,7 @@ const worker = new Worker(
           tags: tags,
           sourceType: detectedType,
           wordCount: wordCount,
-          createdAt: item.createdAt, // store timestamp for resurfacing UI
+          createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : new Date().toISOString(),
           image: item.image || "",
           siteName: item.siteName || "",
           favicon: item.favicon || "",

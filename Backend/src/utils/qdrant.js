@@ -17,7 +17,7 @@ async function initCollection() {
     if (!exists) {
         await client.createCollection(COLLECTION, {
             vectors: {
-                size: 768,          // Gemini gemini-embedding-001 = 768 dimensions
+                size: 3072,          // Gemini gemini-embedding-001 = 3072 dimensions
                 distance: "Cosine", // best for semantic similarity
             },
         });
