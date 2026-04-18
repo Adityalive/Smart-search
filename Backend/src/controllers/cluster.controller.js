@@ -177,16 +177,9 @@ export const getClusters = async (req, res) => {
                 }
             }
 
-            // 3. Tag-based topic grouping (fallback)
-            if (!category) {
-                const meaningfulTags = tags.filter(tag => {
-                    const lt = tag.toLowerCase();
-                    return !["article", "link", "pdf", "image", "video", "tutorial", "web", "page"].includes(lt);
-                });
-                if (meaningfulTags.length > 0) {
-                    category = meaningfulTags[0];
-                }
-            }
+            // 3. Tag-based topic grouping is intentionally removed —
+            //    items without a clear domain/media match go to k-means
+            //    so they get semantically grouped, not scattered into singleton tag buckets.
 
             const itemPayload = {
                 _id: data.mongodbId || point.id,
@@ -214,7 +207,9 @@ export const getClusters = async (req, res) => {
         // K-means for remaining items
         const topicClusters = [];
         if (itemsToCluster.length > 0) {
-            const k = Math.min(5, Math.ceil(itemsToCluster.length / 8));
+            // Clamp k: at least 2 so we always form meaningful groups,
+            // at most 5, roughly 1 cluster per 3 items.
+            const k = Math.max(2, Math.min(5, Math.ceil(itemsToCluster.length / 3)));
             const clusters = kMeansClustering(itemsToCluster, k);
 
             clusters.forEach((cluster, idx) => {

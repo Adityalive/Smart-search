@@ -1,4 +1,4 @@
-import _ from 'lodash';
+// K-Means clustering utilities
 
 /**
  * Basic Cosine Distance calculation
@@ -21,8 +21,12 @@ function cosineDistance(vecA, vecB) {
  * points: array of { vector: number[], ...data }
  * k: number of clusters to form
  */
-export function kMeansClustering(points, k = 3, iterations = 5) {
+export function kMeansClustering(points, k = 3, iterations = 15) {
   if (!points || points.length === 0) return [];
+  
+  // Clamp k: must be at least 1, at most the number of points
+  k = Math.max(1, Math.min(k, points.length));
+
   if (points.length <= k) {
     return points.map((p, i) => ({ 
       id: i, 
@@ -31,8 +35,28 @@ export function kMeansClustering(points, k = 3, iterations = 5) {
     }));
   }
 
-  // 1. Initialize centroids randomly from points
-  let centroids = _.sampleSize(points, k).map(p => [...p.vector]);
+  // 1. K-means++ initialization: pick centroids greedily so they start spread out
+  const firstIdx = Math.floor(Math.random() * points.length);
+  let centroids = [[...points[firstIdx].vector]];
+
+  while (centroids.length < k) {
+    // For each point, find distance to nearest existing centroid
+    const distances = points.map(p => {
+      let minD = Infinity;
+      for (const c of centroids) {
+        const d = cosineDistance(p.vector, c);
+        if (d < minD) minD = d;
+      }
+      return minD;
+    });
+    // Pick the point with the maximum distance as the next centroid
+    let maxIdx = 0;
+    for (let i = 1; i < distances.length; i++) {
+      if (distances[i] > distances[maxIdx]) maxIdx = i;
+    }
+    centroids.push([...points[maxIdx].vector]);
+  }
+
   let groups = [];
 
   for (let iter = 0; iter < iterations; iter++) {
