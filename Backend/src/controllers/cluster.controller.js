@@ -1,5 +1,7 @@
 import { getAllUserPoints } from "../utils/qdrant.js";
 import { kMeansClustering } from "../utils/kmeans.js";
+import Item from "../models/item.model.js";
+
 
 // Helper: Dot product divided by magnitudes
 function cosineSimilarity(vecA, vecB) {
@@ -143,56 +145,64 @@ function getDomainFolder(url) {
 export const getClusters = async (req, res) => {
     try {
         const userId = req.user.id.toString();
-        const points = await getAllUserPoints(userId);
 
-        if (!points || points.length === 0) {
+        // ── 1. Primary source: ALL items from MongoDB ──────────────────────────
+        const allItems = await Item.find({ userId: req.user.id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (!allItems || allItems.length === 0) {
             return res.status(200).json({ clusters: [] });
         }
 
-        const itemsToCluster = [];
-        const deterministicClusters = new Map();
+        // ── 2. Build a Qdrant vector map for items that have embeddings ─────────
+        //    (used only for k-means on uncategorized items)
+        let vectorMap = new Map(); // mongodbId → vector
+        try {
+            const points = await getAllUserPoints(userId);
+            for (const point of points) {
+                if (point.payload?.mongodbId && point.vector?.length > 0) {
+                    vectorMap.set(point.payload.mongodbId, point.vector);
+                }
+            }
+        } catch (e) {
+            console.error("[Clusters] Qdrant fetch failed (continuing with domain clusters):", e.message);
+        }
 
-        for (const point of points) {
-            if (!point.payload) continue;
-            // Skip points with no valid vector (embedding failed when item was processed)
-            if (!point.vector || point.vector.length === 0) continue;
+        // ── 3. Classify every MongoDB item ────────────────────────────────────
+        const deterministicClusters = new Map(); // folderName → { name, items[] }
+        const itemsForKMeans = [];
 
-            const data = point.payload;
-            const url = data.url || "";
-            const st = (data.sourceType || "").toLowerCase();
-            const t = (data.title || "").toLowerCase();
-            const tags = data.tags || [];
+        for (const item of allItems) {
+            const url = item.url || "";
+            const st = (item.sourceType || "").toLowerCase();
+            const idStr = item._id.toString();
+
+            const itemPayload = {
+                _id: idStr,
+                url: item.url,
+                title: item.title || "Untitled",
+                tags: item.tags || [],
+                description: item.description || "",
+                type: item.type || "url",
+                sourceType: item.sourceType,
+                image: item.image,
+                siteName: item.siteName,
+                favicon: item.favicon,
+                createdAt: item.createdAt,
+            };
 
             let category = null;
 
-            // 1. Check domain map first (most specific)
-            category = getDomainFolder(url);
+            // a) Domain map (most specific)
+            if (url) category = getDomainFolder(url);
 
-            // 2. Media type checks (only if no domain match)
+            // b) Media type (only if no domain match)
             if (!category) {
-                if (st === "image" || t.endsWith(".jpg") || t.endsWith(".jpeg") || t.endsWith(".png") || t.endsWith(".webp")) {
-                    category = "Images";
-                } else if (st === "video" || t.endsWith(".mp4") || t.endsWith(".mov") || t.endsWith(".avi")) {
-                    category = "Videos";
-                } else if (st === "pdf" || t.endsWith(".pdf") || url.toLowerCase().endsWith(".pdf")) {
-                    category = "PDF Documents";
-                }
+                if (st === "image") category = "Images";
+                else if (st === "video") category = "Videos";
+                else if (st === "pdf") category = "PDF Documents";
             }
-
-            // 3. Tag-based topic grouping is intentionally removed —
-            //    items without a clear domain/media match go to k-means
-            //    so they get semantically grouped, not scattered into singleton tag buckets.
-
-            const itemPayload = {
-                _id: data.mongodbId || point.id,
-                url: data.url,
-                title: data.title || "Untitled Document",
-                tags: data.tags || [],
-                description: data.description || "",
-                type: data.url ? "url" : "pdf",
-                sourceType: data.sourceType,
-                vector: point.vector
-            };
 
             if (category) {
                 const norm = category.toLowerCase();
@@ -201,45 +211,58 @@ export const getClusters = async (req, res) => {
                 }
                 deterministicClusters.get(norm).items.push(itemPayload);
             } else {
-                // Truly unknown — send to k-means
-                itemsToCluster.push(itemPayload);
+                // No domain/media match — try k-means if we have a vector
+                const vec = vectorMap.get(idStr);
+                if (vec) {
+                    itemsForKMeans.push({ ...itemPayload, vector: vec });
+                } else {
+                    // No vector either — put in a generic "Other" bucket
+                    const norm = "other";
+                    if (!deterministicClusters.has(norm)) {
+                        deterministicClusters.set(norm, { name: "Other", items: [] });
+                    }
+                    deterministicClusters.get(norm).items.push(itemPayload);
+                }
             }
         }
 
-        // K-means for remaining items
+        // ── 4. K-means on items with embeddings but no known domain ───────────
         const topicClusters = [];
-        if (itemsToCluster.length > 0) {
-            // Clamp k: at least 2 so we always form meaningful groups,
-            // at most 5, roughly 1 cluster per 3 items.
-            const k = Math.max(2, Math.min(5, Math.ceil(itemsToCluster.length / 3)));
-            const clusters = kMeansClustering(itemsToCluster, k);
+        if (itemsForKMeans.length > 0) {
+            const k = Math.max(2, Math.min(5, Math.ceil(itemsForKMeans.length / 3)));
+            const clusters = kMeansClustering(itemsForKMeans, k);
 
             clusters.forEach((cluster, idx) => {
                 const tagRanks = {};
                 for (const p of cluster.points) {
-                    for (const tag of p.tags) {
+                    for (const tag of (p.tags || [])) {
                         tagRanks[tag] = (tagRanks[tag] || 0) + 1;
                     }
                 }
                 const topTags = Object.keys(tagRanks).sort((a, b) => tagRanks[b] - tagRanks[a]);
                 const clusterName = topTags[0] || `Topic ${idx + 1}`;
 
+                // Strip vector from output — frontend doesn't need it
                 topicClusters.push({
                     name: clusterName,
-                    items: cluster.points
+                    items: cluster.points.map(({ vector, ...rest }) => rest),
                 });
             });
         }
 
+        // ── 5. Merge and sort by size ─────────────────────────────────────────
         const finalClusters = [
             ...Array.from(deterministicClusters.values()),
-            ...topicClusters
-        ].map((c, index) => ({
-            id: `cluster_${index}`,
-            name: c.name,
-            itemCount: c.items.length,
-            items: c.items
-        })).sort((a, b) => b.itemCount - a.itemCount);
+            ...topicClusters,
+        ]
+            .filter(c => c.items.length > 0)
+            .map((c, index) => ({
+                id: `cluster_${index}`,
+                name: c.name,
+                itemCount: c.items.length,
+                items: c.items,
+            }))
+            .sort((a, b) => b.itemCount - a.itemCount);
 
         return res.status(200).json({ clusters: finalClusters });
 
@@ -248,3 +271,4 @@ export const getClusters = async (req, res) => {
         return res.status(500).json({ message: "Failed to generate clusters." });
     }
 };
+
